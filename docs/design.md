@@ -87,7 +87,8 @@ behaviour.
 
 The goal of milestone 1 is to de-risk the project implementation. We will
 provide an extremely bare-bones minimum viable product (MVP) which illustrates
-that the major engineering hurdles can be solved.
+that the major engineering hurdles can be solved and that our approach is
+feasible.
 
 To that end, we will deliver an executable which can perform black-box test
 (a fork of) `cardano-node` against a single point schedule.
@@ -97,6 +98,9 @@ and will not use any specialized knowledge of the internals of `cardano-node`.
 As a possible exception, we will assume that we can run `cardano-node` over
 `TestBlock`s. This might require a fork.
 
+We'll start with a simple testing approach, where we compare the resulting
+state of the NUT with the end state of the point schedule and make sure
+the simulated peers behave as expected.
 
 #### Plan
 
@@ -118,28 +122,83 @@ As a possible exception, we will assume that we can run `cardano-node` over
    `cardano-node` ended in the correct state.
 
 
-### Milestone 2 - Generation of point schedules
+### Milestone 2 - Shrinking
 
-1. Parameterize the point schedule.
-1. Adapt existing generators.
-1. Refine them to our use case (to focus less on syncing nodes).
+#### Goals
 
-### Milestone 3 - Shrinking
+Provide a useful failure feedback, so that users can leverage the test
+to find specific bugs on their consensus protocol implementation.
 
-This is currently the less clear of the milestones, but must definitely be
-taken care of at some point:
+Deliver a shrinking strategy to run our executable from [1] on subsequently
+smaller tests.
 
-- Server stays online all during all the testing?
-    * Yes: the user only starts the server once and we can keep track of the
-      shrink tree in memory.
-    * No: We need a separate utility to materialize the view of the shrinking
-      process (e.g. to store the current shrink node in disk using an index).
-      Then, given some point schedule and an index, produce the shrunk point
-      schedule.
-- Related: Should we automatically generate the next shrinking candidate and ask
-  the client to run it? If so, how?
+#### Plan
 
-### Milestone X - All of the above, but for other implementations
+- Change milestone [1] binary to support a shrink index as input (pointing to were
+  we currently are on the shrink tree).
+    - If test succeeds and there is no shrink index, we end with success.
+    - If test succeeds with a shrink index, the binary returns a successor to this
+      shrink index.
+    - If test fails, we extend the shrink index.
+    - If test fails, and the shrink index can't be extended, we output the
+      minimally shrunk point schedule.
+- Build a utility to materialize the view of the shrinking so that, given some
+  point schedule and an index, produces the shrunk point schedule.
+  
+Alternative: Automatically generate the next shrinking candidate and ask the
+client to run it.
+We want all our components to be stateless as a design choice for composability.
+This work does not preclude the possibility of implementing this.
+
+### Milestone 3 - Amaru and other Implementations
+
+#### Goal
+
+At this point, the MVP is working as expected on the `cardano-node`;
+our goal now is to make sure this works for other implementations, and that our design
+is effectively decoupled from `cardano-node`. We will figure out the general
+requirements for any implementation that adheres to the consensus protocol.
+
+To accomplish the above, in this milestone we make the test work on Amaru
+(Rust implementation).
+
+_Stretch:_ Find a test failure in Amaru; which we might not get if its consensus
+implementation is correct. But if we find something, this would provide a compelling
+argument on the value of this test.
+
+#### Plan
+
+1. Make the test work on Amaru.
+    1. Have a means of disabling crypto.
+    1. Ensure that it can parse our generated topology files.
+1. Document the necessary requirements from a node to run this tests.
+    * At the forefront, we have the previous two requirements (parse topology and disable crypto).
+
+### Milestone 4 - Generation of point schedules
+
+#### Goals
+
+Create a separate utility that generates point schedules for specific testing properties.
+At this point, we design a file (serialization) format for these.
+
+Note: We will have versioning for the file format, as we work though its constraints.
+In the future we might want to generalize this to have a coupling between peer schedules
+and the properties being tested.
+
+#### Plan
+
+1. Design a serialization format for point schedules.
+1. Produce a binary capable of running different generators and output the serialized
+   point schedules.
+1. Connect the existing generators (alternatively, expose them).
+1. Figure out what other generators we need to write.
+
+### Milestone 5 - UX Improvement
+
+Figure out how to account for the identified common use cases to improve on UX.
+How annoying it is to use? What are the crucial pain points?
+
+Clean up, refine and **make it useable**.
 
 ## Notes
 
