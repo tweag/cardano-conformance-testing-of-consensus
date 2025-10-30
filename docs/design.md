@@ -124,6 +124,8 @@ As a possible exception, we will assume that we can run `cardano-node` over
 1. Adapt existing generators.
 1. Refine them to our use case (to focus less on syncing nodes).
 
+tasty test
+
 ### Milestone 3 - Shrinking
 
 This is currently the less clear of the milestones, but must definitely be
