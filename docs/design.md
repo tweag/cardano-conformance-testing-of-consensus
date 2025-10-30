@@ -42,7 +42,11 @@ single coordinated point schedule in order to simulate multiple upstream peers (
 adversarial, possibly colluding) and validate that a syncing node ends up with the correct chain.
 Whilst the point schedule currently is implemented inside the Haskell node, its declarative nature
 makes it possible to export this testing method and make it usable across diverse node
-implementations. To this end, we aim at the following:
+implementations.
+
+### Original Proposal
+
+To this end, we aim at the following:
 
 1. Refine the point schedule generators to focus less on syncing nodes (which
    was originally appropriate for Ouroboros Genesis).
@@ -76,26 +80,43 @@ behaviour.
 
 ## Milestones
 
-### Milestone 1 - Run Point Schedules and Property tests for the OG implementation
 
-Develop an MVP along the following lines:
+### Milestone 1 - Run Point Schedules and Property Tests for `cardano-node`
 
-1. Build a test binary using a hardcoded point schedule.
-    - Alternatively, have the point schedule as input at this point
-      so that we can do shrinking.
-1. Test binary starts a server and outputs a topology file matching the point
-   schedule.
-1. Client loads the topology file to connect to our server.
-1. Client signals setup completion to start the test.
-     - Alternatively, once all the peers have been connected to (or other network
-       condition is fulfilled, e.g. a single request message), the test starts
-       automatically.
-1. Server runs the point schedule, and starts simulating the prescribed peers.
-1. Client behaves as normal.
-1. Client sends final state back to server.
-1. Server checks whether client chose the correct chain.
-    - Yes: Success!
-    - No: Shrink, rinse and repeat.
+#### Goal
+
+The goal of milestone 1 is to de-risk the project implementation. We will
+provide an extremely bare-bones minimum viable product (MVP) which illustrates
+that the major engineering hurdles can be solved.
+
+To that end, we will deliver an executable which can perform black-box test
+(a fork of) `cardano-node` against a single point schedule.
+
+The test executable will communicate with `cardano-node` over network sockets,
+and will not use any specialized knowledge of the internals of `cardano-node`.
+As a possible exception, we will assume that we can run `cardano-node` over
+`TestBlock`s. This might require a fork.
+
+
+#### Plan
+
+1. The user obtains a point schedule from somewhere (generating these is part
+   of Milestone <TODO>)
+2. The user invokes our test binary, passing in the point schedule as an
+   argument.
+3. The test binary starts up the simulated peers, and returns a topology file.
+4. The user starts `cardano-node` with the given topology file.
+5. `cardano-node` connects to our simulated peers
+6. Once all of the peers have been connected to, the point schedule begins
+   running
+7. After the point schedule has finished, we **SOME HOW** observe the final
+   state of `cardano-node`
+
+   To accomplish this, can we create a new peer, who connects to the NUT, and
+   asks to be caught up?
+8. The server will exit with a return code corresponding to whether or not
+   `cardano-node` ended in the correct state.
+
 
 ### Milestone 2 - Generation of point schedules
 
