@@ -42,7 +42,11 @@ single coordinated point schedule in order to simulate multiple upstream peers (
 adversarial, possibly colluding) and validate that a syncing node ends up with the correct chain.
 Whilst the point schedule currently is implemented inside the Haskell node, its declarative nature
 makes it possible to export this testing method and make it usable across diverse node
-implementations. To this end, we aim at the following:
+implementations.
+
+### Original Proposal
+
+To this end, we aim at the following:
 
 1. Refine the point schedule generators to focus less on syncing nodes (which
    was originally appropriate for Ouroboros Genesis).
