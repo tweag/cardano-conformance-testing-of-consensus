@@ -174,6 +174,11 @@ argument on the value of this test.
 1. Document the necessary requirements from a node to run this tests.
     * At the forefront, we have the previous two requirements (parse topology and disable crypto).
 
+#### Questions
+
+Do we need to simulate time? This might be related to configuration access to
+node timeouts (as Network delays would be irrelevant in this setting).
+
 ### Milestone 4 - Generation of point schedules
 
 #### Goals
