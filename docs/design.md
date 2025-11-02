@@ -72,9 +72,105 @@ behaviour.
 
 ## Proposed Change Specification
 
+### Design Desiderata
+
+- composable
+- reusable
+- stateless
+- useful
+
+
+### Design
+
+We will ship three separate tools:
+
+1. Test Generator (testgen)
+2. Test Runner (runner)
+3. Shrink Viewer (shrinkview)
+
+The purpose of `testgen` is to generate test cases. Testgen will be a CLI tool
+which accepts arguments to select a specific class of tests, and potentially
+some test-specific tuning knobs (to eg, change the "difficulty" of the test.)
+Each class of tests will have an associated `Gen`erator, which testgen will
+invoke to instantiate a specific instance of the test class. Testgen will
+output a test file, the contents of which will contain a point schedule and
+(mechanical) description of the property which needs to pass.
+
+<!-- TODO(sandy): how do we serialize properties? -->
+
+The `runner` CLI tool accepts a test file (as output by `testgen`) and
+a *shrink index* (see @sec:shrinking), and spins up simulated peers
+corresponding to the embedded point schedule. The `runner` tool will then
+output a [topology
+file](https://developers.cardano.org/docs/operate-a-stake-pool/node-operations/topology/)
+whose `localRoots` will point to the simulated peers. We will create an
+additional `localRoot` peer whose job is to record all messages diffused from
+the NUT.
+
+<!-- TODO(sandy): define NUT sooner -->
+
+Alterantive nodes which wish to test against `runner` (the "nodes under test",
+or *NUTs*) can parse the generated topology file and connect to the simulated
+peers. Once they have all been connected to, the point schedule will begin
+running. The simulated peers will begin sending their mocked blocks to the NUT
+corresponding to the point schedule.
+
+Upon completion of the point schedule, we will evaluate the test property. We
+can compare the final state of the NUT (as observed by the testing peer) and
+ensure the desired property holds. Depending on the result of the test and the
+state of the shrink index, we will perform different actions (see @sec:exit-codes.)
+
+The `shrinkView` tool accepts a test input and a shrink index, and outputs the
+test output corresponding to the given shrink index. This tool is primarily
+useful for looking at non-minimal test inputs, eg, when the user doesn't want
+to iterate the shrinking all the way down to a minimal example.
+
+
+### Exit Codes
+
+In the case that the property succeeded and the shrink index is `empty`, we
+will exit with code 0. This corresponds to a test pass.
+
+If the property succeeded, but the shrink index was non-`empty`, we will exit
+with code 129. In addition, we will output the result of `succ shrinkIndex` on
+stdout. While this is technically a test pass, it is a pass for a shrunk input. Thus this is merely a "local" success, rather than a "global" success.
+
+If the property failed, and we can `extend` the shrink index, we will exit with
+code 131 and output the result of `extend shrinkInput` on stdout. This corresponds to a non-minimal test failure.
+
+If the property failed and we cannot `extend` the shrink index, we will exit
+with code 128, and produce the minimal test case on stdout.
+
+In the case of exit codes 1 and 2, the user is encouraged to restart the
+`runner` with the new shrink index, in order to manually "pump" the shrinker.
+
+<!-- TODO(sandy): bash out some of these error codes.-->
+<!-- TODO(sandy): would be nice to have a mask for states-->
+
+```c
+enum Exit {
+  SUCCESS = 0,
+  INTERNAL_ERROR = 1,
+  BAD_USAGE = 2,
+  FAIL = 4,
+  CONTINUE_SHRINKING = 8,
+}
+```
+
+therefore `FAIL | CONTINUE_SHRINKING` (ie exit code 12) corresponds to "test failed and you should keep going."
+
+`INTERNAL_ERROR` is for when something goes wrong inside of `runner` itself,
+and `BAD_USAGE` is for when the program is invoked incorrectly (eg called with
+unparsable flags.)
+
+
 ## Alternatives
 
 ## Unresolved Questions
+
+* Do we need a separate peer to act as our state observer? Maybe not, but it's
+  conceptually clearer to have a peer whose sole job is to collect data. As
+  a counterexample, what happens when the peer schedule is empty?
 
 ## Implementation Plan
 
@@ -144,7 +240,7 @@ smaller tests.
       minimally shrunk point schedule.
 - Build a utility to materialize the view of the shrinking so that, given some
   point schedule and an index, produces the shrunk point schedule.
-  
+
 Alternative: Automatically generate the next shrinking candidate and ask the
 client to run it.
 We want all our components to be stateless as a design choice for composability.
