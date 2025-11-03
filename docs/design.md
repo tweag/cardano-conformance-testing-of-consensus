@@ -112,56 +112,58 @@ the NUT.
 Alterantive nodes which wish to test against `runner` (the "nodes under test",
 or *NUTs*) can parse the generated topology file and connect to the simulated
 peers. Once they have all been connected to, the point schedule will begin
-running. The simulated peers will begin sending their mocked blocks to the NUT
-corresponding to the point schedule.
+running. The simulated peers will follow the point schedule, sending their
+mocked blocks to the NUT.
 
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
 ensure the desired property holds. Depending on the result of the test and the
 state of the shrink index, we will perform different actions (see @sec:exit-codes.)
 
-The `shrinkView` tool accepts a test input and a shrink index, and outputs the
-test output corresponding to the given shrink index. This tool is primarily
+The `shrinkView` tool accepts a test file and a shrink index, and outputs the
+test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
 
 
 ### Exit Codes
 
-In the case that the property succeeded and the shrink index is `empty`, we
-will exit with code 0. This corresponds to a test pass.
-
-If the property succeeded, but the shrink index was non-`empty`, we will exit
-with code 129. In addition, we will output the result of `succ shrinkIndex` on
-stdout. While this is technically a test pass, it is a pass for a shrunk input. Thus this is merely a "local" success, rather than a "global" success.
-
-If the property failed, and we can `extend` the shrink index, we will exit with
-code 131 and output the result of `extend shrinkInput` on stdout. This corresponds to a non-minimal test failure.
-
-If the property failed and we cannot `extend` the shrink index, we will exit
-with code 128, and produce the minimal test case on stdout.
-
-In the case of exit codes 1 and 2, the user is encouraged to restart the
-`runner` with the new shrink index, in order to manually "pump" the shrinker.
-
-<!-- TODO(sandy): bash out some of these error codes.-->
-<!-- TODO(sandy): would be nice to have a mask for states-->
+The `Exit` bit mask enum is used in the following section:
 
 ```c
 enum Exit {
   SUCCESS = 0,
   INTERNAL_ERROR = 1,
   BAD_USAGE = 2,
-  FAIL = 4,
+  TEST_FAILED = 4,
   CONTINUE_SHRINKING = 8,
 }
 ```
 
-therefore `FAIL | CONTINUE_SHRINKING` (ie exit code 12) corresponds to "test failed and you should keep going."
+In the case that the property succeeded and the shrink index is `empty`, we
+will exit with code `SUCCESS`. This corresponds to a test pass.
 
 `INTERNAL_ERROR` is for when something goes wrong inside of `runner` itself,
 and `BAD_USAGE` is for when the program is invoked incorrectly (eg called with
-unparsable flags.)
+unparsable flags.) This usage of codes 1 and 2 is consistent with POSIX
+standards.
+
+If the property succeeded, but the shrink index was non-`empty`, we will exit
+with code `CONTINUE_SHRINKING`. In addition, we will output the result of `succ
+shrinkIndex` on stdout. While this is technically a test pass, it is a pass for
+a shrunk input. Thus this is merely a "local" success, rather than a "global"
+success.
+
+If the property failed, and we can `extend` the shrink index, we will exit with
+code `TEST_FAILED | CONTINUE_SHRINKING` and output the result of `extend shrinkInput`
+on stdout. This corresponds to a non-minimal test failure.
+
+If the property failed and we cannot `extend` the shrink index, we will exit
+with code `TEST_FAILED`, and produce the minimal test case on stdout.
+
+When the `CONTINUE_SHRINKING` bit is part of the exit code, the user is
+encouraged to restart the `runner` with the new shrink index, in order to
+manually "pump" the shrinker.
 
 
 ## Alternatives
