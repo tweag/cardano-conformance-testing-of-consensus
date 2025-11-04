@@ -2,82 +2,70 @@
 
 ## Motivation
 
-The eponymous feature of a consensus protocol is, of course, that it is expected to maintain
-consensus. In our terms, all nodes (subject to the various assumptions on the state of the network
-and honest majority) will agree on a prefix of the current chain.
-Up to now, this has been achieved in the following ways:
+`cardano-node` ships with a large suite of tests verifying its consensus
+protocol. Given the subtlety in the implementation of the consensus protocol,
+it's desirable that we can leverage this existing test suite to help verify the
+correctness of alternative node implementations.
 
-- Every node in the network is running (close to) the same code.
-- Consensus testing (living inside `io-sim`, a Haskell IO simulator) validates that all (honest)
-nodes will eventually reach consensus.
+Correctness here is an *extremely important* property---much more so than in
+most software projects. Nodes failing to agree on the correct chain risks an
+accidental hard fork. Should one persist long enough it might potentially be
+unrecoverable.
 
-In a world of multiple node implementations, this strategy no longer holds. Nodes may be running
-very different code, and most of it will not be testable under `io-sim`. Nodes failing to agree on the
-correct chain risks an accidental hard fork. Should one persist long enough it might potentially be
-unrecoverable. Thus, we need to revisit consensus testing in the context of alternative
-node implementations. This proposal will extract portions of the Consensus tests of the existing node
-that will be of chief benefit to two groups:
+This document gives a design for a suite of tools, and the necessary
+infrastructure changes, to expose these existing tests in a form that
+alternative nodes can use.
 
-- Implementors of alternate nodes, giving them a means of validating that they have
-implemented the consensus protocol stack correctly.
-- The wider Cardano community, in helping to ensure that the network does not end up
-with an accidental hard fork.
+We do not make any assumptions that alternative nodes be written in Haskell,
+nor that they have access to a QuickCheck-like library.
+
 
 ## Context
 
-During the course of implementing Ouroboros Genesis, we designed an approach to node
-testing which we now call “Node vs Environment”. In effect, while we are ultimately interested in
-the behaviour of multiple nodes agreeing on the “right” chain, we can more easily test by taking
-advantage of two insights:
+The tests we'd like to expose to alternative implementations are in the "Node
+vs Environment" style. In effect, while we are ultimately interested in the
+behaviour of multiple nodes agreeing on the "right" chain, we can more easily
+test by taking advantage of two insights:
 
-1. The logic of identifying the honest chain locally is tricky, but it is very easy to identify
-globally. Since we are only interested in cases where there is a global best chain, we
-have a very simple judgment rule as to whether a node has selected the correct one.
-2. Once we have an easily identified honest chain, we no longer need to simulate multiple
-nodes and look for agreement - instead, we simulate a single node and judge the
-correctness of its responses to stimuli.
+1. The logic of identifying the honest chain locally is tricky, but it is very
+   easy to identify globally. Since we are only interested in cases where there
+   is a global best chain, we have a very simple judgment rule as to whether
+   a node has selected the correct one.
+2. Once we have an easily identified honest chain, we no longer need to
+   simulate multiple nodes and look for agreement - instead, we run only
+   a single node and judge the correctness of its responses to stimuli.
 
-The result of this approach for Ouroboros Genesis was a testing framework that makes use of a
-single coordinated point schedule in order to simulate multiple upstream peers (possibly
-adversarial, possibly colluding) and validate that a syncing node ends up with the correct chain.
-Whilst the point schedule currently is implemented inside the Haskell node, its declarative nature
-makes it possible to export this testing method and make it usable across diverse node
-implementations.
+The testing framework thus makes use of a single coordinated *point schedule,*
+which is used to simulate multiple upstream (possibly adversarial, possibly
+colluding) peers. After evaluation of the point schedule, the Node Under Test
+(NUT) is validated to ensure it ends up with the correct chain.
 
-### Original Proposal
+Whilst the point schedule currently is implemented inside the Haskell node, its
+declarative nature makes it possible to export this testing method and make it
+usable across diverse node implementations. To ensure this, we will look only
+at the messages sent over the network, to ensure we are performing black-box
+testing.
 
-To this end, we aim at the following:
 
-1. Refine the point schedule generators to focus less on syncing nodes (which
-   was originally appropriate for Ouroboros Genesis).
-2. Define a serialised format for consensus test cases, covering the chain and
-   point schedule.
-3. Extract from the current node testing suite a standalone capability to
-   generate and export point schedules, along with their underlying chains.
-4. Create an independent utility that does the following:
+## Proposed Specification
 
-   1. Read a serialized point schedule.
-   2. Act as one or more peers serving points as defined on the schedule. Such
-      peers would instantiate appropriate protocols to serve as upstream peers
-      to the node under test (NUT).
-   3. Open a timing socket to allow the node under test to control the “ticking”
-      of the schedule.
-   4. Shrink and restart test cases upon signal from the node under test.
-   5. Re-export shrunk test cases to disk — failing test cases that have been
-      shrunk are much easier for developers to debug.
+### Desiderata
 
-This infrastructure would allow other node implementations to take advantage of the work
-already done to test the Haskell node, as well as allowing them to validate compatible consensus
-behaviour.
+The design of the proposal is heavily influenced by our pursuit of the
+following four desiderata:
 
-## Proposed Change Specification
-
-### Design Desiderata
-
-- composable
-- reusable
-- stateless
-- useful
+1. **Composablity:** the resulting system ought to be built from small, individual
+   pieces, which can be combined in different ways to accommodate different
+   workflows. When in doubt, prefer small utilities over monolithic systems.
+2. **Reusablity:** whenever possible, we should reuse existing machinery.
+   If direct reuse is not possible, we will surgically modify existing code to
+   support our new use cases.
+3. **Congruence:** when given the same inputs, the system will return the same
+   output (subject to the robustness of the NUT.) One particularly salient
+   corollary of this is that the system must be *stateless.*
+4. **Usefulness:** there is no reason to provide tests if they do not add any
+   value. Therefore, the constraints necessary to run the tests must be
+   minimal. The system must be automatable.
 
 
 ### Design
