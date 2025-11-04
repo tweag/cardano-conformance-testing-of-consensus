@@ -35,15 +35,16 @@ test by taking advantage of two insights:
    simulate multiple nodes and look for agreement - instead, we run only
    a single node and judge the correctness of its responses to stimuli.
 
-The testing framework thus makes use of a single coordinated "point schedule,"
+The testing framework thus makes use of a single coordinated *point schedule,*
 which is used to simulate multiple upstream (possibly adversarial, possibly
 colluding) peers. After evaluation of the point schedule, the Node Under Test
 (NUT) is validated to ensure it ends up with the correct chain.
 
 Whilst the point schedule currently is implemented inside the Haskell node, its
 declarative nature makes it possible to export this testing method and make it
-usable across diverse node
-implementations.
+usable across diverse node implementations. To ensure this, we will look only
+at the messages sent over the network, to ensure we are performing black-box
+testing.
 
 
 ## Proposed Specification
