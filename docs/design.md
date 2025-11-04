@@ -2,26 +2,23 @@
 
 ## Motivation
 
-The eponymous feature of a consensus protocol is, of course, that it is expected to maintain
-consensus. In our terms, all nodes (subject to the various assumptions on the state of the network
-and honest majority) will agree on a prefix of the current chain.
-Up to now, this has been achieved in the following ways:
+`cardano-node` ships with a large suite of tests verifying its consensus
+protocol. Given the subtlety in the implementation of the consensus protocol,
+it's desirable that we can leverage this existing test suite to help verify the
+correctness of alternative node implementations.
 
-- Every node in the network is running (close to) the same code.
-- Consensus testing (living inside `io-sim`, a Haskell IO simulator) validates that all (honest)
-nodes will eventually reach consensus.
+Correctness here is an *extremely important* property---much more so than in
+most software projects. Nodes failing to agree on the correct chain risks an
+accidental hard fork. Should one persist long enough it might potentially be
+unrecoverable.
 
-In a world of multiple node implementations, this strategy no longer holds. Nodes may be running
-very different code, and most of it will not be testable under `io-sim`. Nodes failing to agree on the
-correct chain risks an accidental hard fork. Should one persist long enough it might potentially be
-unrecoverable. Thus, we need to revisit consensus testing in the context of alternative
-node implementations. This proposal will extract portions of the Consensus tests of the existing node
-that will be of chief benefit to two groups:
+This document gives a design for a suite of tools, and the necessary
+infrastructure changes, to expose these existing tests in a form that
+alternative nodes can use.
 
-- Implementors of alternate nodes, giving them a means of validating that they have
-implemented the consensus protocol stack correctly.
-- The wider Cardano community, in helping to ensure that the network does not end up
-with an accidental hard fork.
+We do not make any assumptions that alternative nodes be written in Haskell,
+nor that they have access to a QuickCheck-like library.
+
 
 ## Context
 
@@ -43,6 +40,7 @@ adversarial, possibly colluding) and validate that a syncing node ends up with t
 Whilst the point schedule currently is implemented inside the Haskell node, its declarative nature
 makes it possible to export this testing method and make it usable across diverse node
 implementations.
+
 
 ### Original Proposal
 
