@@ -22,23 +22,27 @@ nor that they have access to a QuickCheck-like library.
 
 ## Context
 
-During the course of implementing Ouroboros Genesis, we designed an approach to node
-testing which we now call “Node vs Environment”. In effect, while we are ultimately interested in
-the behaviour of multiple nodes agreeing on the “right” chain, we can more easily test by taking
-advantage of two insights:
+The tests we'd like to expose to alternative implementations are in the "Node
+vs Environment" style. In effect, while we are ultimately interested in the
+behaviour of multiple nodes agreeing on the "right" chain, we can more easily
+test by taking advantage of two insights:
 
-1. The logic of identifying the honest chain locally is tricky, but it is very easy to identify
-globally. Since we are only interested in cases where there is a global best chain, we
-have a very simple judgment rule as to whether a node has selected the correct one.
-2. Once we have an easily identified honest chain, we no longer need to simulate multiple
-nodes and look for agreement - instead, we simulate a single node and judge the
-correctness of its responses to stimuli.
+1. The logic of identifying the honest chain locally is tricky, but it is very
+   easy to identify globally. Since we are only interested in cases where there
+   is a global best chain, we have a very simple judgment rule as to whether
+   a node has selected the correct one.
+2. Once we have an easily identified honest chain, we no longer need to
+   simulate multiple nodes and look for agreement - instead, we run only
+   a single node and judge the correctness of its responses to stimuli.
 
-The result of this approach for Ouroboros Genesis was a testing framework that makes use of a
-single coordinated point schedule in order to simulate multiple upstream peers (possibly
-adversarial, possibly colluding) and validate that a syncing node ends up with the correct chain.
-Whilst the point schedule currently is implemented inside the Haskell node, its declarative nature
-makes it possible to export this testing method and make it usable across diverse node
+The testing framework thus makes use of a single coordinated "point schedule,"
+which is used to simulate multiple upstream (possibly adversarial, possibly
+colluding) peers. After evaluation of the point schedule, the Node Under Test
+(NUT) is validated to ensure it ends up with the correct chain.
+
+Whilst the point schedule currently is implemented inside the Haskell node, its
+declarative nature makes it possible to export this testing method and make it
+usable across diverse node
 implementations.
 
 
