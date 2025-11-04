@@ -46,14 +46,25 @@ usable across diverse node
 implementations.
 
 
-## Proposed Change Specification
+## Proposed Specification
 
-### Design Desiderata
+### Desiderata
 
-- composable
-- reusable
-- stateless
-- useful
+The design of the proposal is heavily influenced by our pursuit of the
+following four desiderata:
+
+1. **Composablity:** the resulting system ought to be built from small, individual
+   pieces, which can be combined in different ways to accommodate different
+   workflows. When in doubt, prefer small utilities over monolithic systems.
+2. **Reusablity:** whenever possible, we should reuse existing machinery.
+   If direct reuse is not possible, we will surgically modify existing code to
+   support our new use cases.
+3. **Congruence:** when given the same inputs, the system will return the same
+   output (subject to the robustness of the NUT.) One particularly salient
+   corollary of this is that the system must be *stateless.*
+4. **Usefulness:** there is no reason to provide tests if they do not add any
+   value. Therefore, the constraints necessary to run the tests must be
+   minimal. The system must be automatable.
 
 
 ### Design
