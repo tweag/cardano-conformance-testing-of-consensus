@@ -46,32 +46,6 @@ usable across diverse node
 implementations.
 
 
-### Original Proposal
-
-To this end, we aim at the following:
-
-1. Refine the point schedule generators to focus less on syncing nodes (which
-   was originally appropriate for Ouroboros Genesis).
-2. Define a serialised format for consensus test cases, covering the chain and
-   point schedule.
-3. Extract from the current node testing suite a standalone capability to
-   generate and export point schedules, along with their underlying chains.
-4. Create an independent utility that does the following:
-
-   1. Read a serialized point schedule.
-   2. Act as one or more peers serving points as defined on the schedule. Such
-      peers would instantiate appropriate protocols to serve as upstream peers
-      to the node under test (NUT).
-   3. Open a timing socket to allow the node under test to control the “ticking”
-      of the schedule.
-   4. Shrink and restart test cases upon signal from the node under test.
-   5. Re-export shrunk test cases to disk — failing test cases that have been
-      shrunk are much easier for developers to debug.
-
-This infrastructure would allow other node implementations to take advantage of the work
-already done to test the Haskell node, as well as allowing them to validate compatible consensus
-behaviour.
-
 ## Proposed Change Specification
 
 ### Design Desiderata
