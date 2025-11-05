@@ -120,10 +120,10 @@ The test generator CLI tool should at least support the following operations:
 
 - `list-classes` to list all available test classes.
 - `generate` to produce a test case (in serialized form) for a test class.
-   This operation has `--seed=NUM` to specify the seed for the generator and
+   This operation has optional flags `--seed=NUM` to specify the seed for the generator and
    `--minimal-counterexample=FILE` that dumps the resulting point schedule
-   to a file when no further shrinking is possible.
-- `meta` to access test class data.
+   to a file if no further shrinking is possible.
+- `meta` to access test class metadata.
 
 To expose the `cardano-node` testing infrastructure we reify the test
 implementation using a `Test` data structure, which is we access with `testgen`
@@ -131,16 +131,23 @@ using the `meta` operation.
 
 ```haskell
 data TestClass
-type ConsensusTestSuite = Map TestClass Test
 
-data Test = Test
+data TestSuite a
+instance Semigroup (TestSuite a)
+instance Monoid (TestSuite a)
+
+insert :: TestClass -> a -> TestSuite a -> TestSuite a
+toListWithKey :: TestSuite a -> [(TestClass, a)]
+
+
+data ConsensusTest = ConsensusTest
   { generator :: Gen PointSchedule
   , shrinker :: PointSchedule -> [PointSchedule]
   , property :: PointSchedule -> IO Bool
-  , passes :: Int
+  , desiredSuccesses :: Int
   }
 
-allTheTests :: ConsensusTestSuite
+allTheTests :: TestSuite ConsensusTest
 ```
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
@@ -156,9 +163,7 @@ parallel $ for TESTCLASS in (testgen list-all-tests):
 
     for 1 <= i <= passes:
 
-        seed = random()
-
-        testfile = testgen generate TESTCLASS --seed=seed
+        testgen generate TESTCLASS > mytest.test
 
         runner testfile --topology-file=file.top > runner.log 2>&1
 
