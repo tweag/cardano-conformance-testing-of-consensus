@@ -234,8 +234,8 @@ provide an extremely bare-bones minimum viable product (MVP) which illustrates
 that the major engineering hurdles can be solved and that our approach is
 feasible.
 
-To that end, we will deliver an executable which can perform black-box test
-(a fork of) `cardano-node` against a single point schedule.
+To that end, we will deliver a barebones version of `runner` which can perform
+black-box testing of (a fork of) `cardano-node` against a given point schedule.
 
 The test executable will communicate with `cardano-node` over network sockets,
 and will not use any specialized knowledge of the internals of `cardano-node`.
@@ -244,12 +244,35 @@ As a possible exception, we will assume that we can run `cardano-node` over
 
 We'll start with a simple testing approach, where we compare the resulting
 state of the NUT with the end state of the point schedule and make sure
-the simulated peers behave as expected.
+the simulated peers behave as expected. **We will not support arbitrary
+properties at this point.**
+
+
+#### Deliverables
+
+In this milestone, we will deliver a minimal implementation of `runner`,
+supporting:
+
+- (mindless, derived) parsing of point schedule test files
+- generating topology files
+- running point schedules
+- observing the state of the NUT
+- returning an appropriate error code of among `SUCCESS`, `INTERNAL_ERROR`,
+  `BAD_USAGE` or `TEST_FAILED`
+
+We explicitly *will not* implement anything around generators or shrinking in
+milestone 1. We assume point schedules can be obtained somehow, but we will
+require only enough in the way of point schedules to verify that our approach
+does what it ought.
+
 
 #### Plan
 
+<!-- TODO(sandy): do we still need this section, or can we wrap it into the global overview? -->
+
+
 1. The user obtains a point schedule from somewhere (generating these is part
-   of Milestone <TODO>)
+   of @sec:generators)
 2. The user invokes our test binary, passing in the point schedule as an
    argument.
 3. The test binary starts up the simulated peers, and returns a topology file.
@@ -257,11 +280,8 @@ the simulated peers behave as expected.
 5. `cardano-node` connects to our simulated peers
 6. Once all of the peers have been connected to, the point schedule begins
    running
-7. After the point schedule has finished, we **SOME HOW** observe the final
-   state of `cardano-node`
-
-   To accomplish this, can we create a new peer, who connects to the NUT, and
-   asks to be caught up?
+7. After the point schedule has finished, we observe the final state of
+   `cardano-node`.
 8. The server will exit with a return code corresponding to whether or not
    `cardano-node` ended in the correct state.
 
