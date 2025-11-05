@@ -234,8 +234,8 @@ provide an extremely bare-bones minimum viable product (MVP) which illustrates
 that the major engineering hurdles can be solved and that our approach is
 feasible.
 
-To that end, we will deliver an executable which can perform black-box test
-(a fork of) `cardano-node` against a single point schedule.
+To that end, we will deliver a barebones version of `runner` which can perform
+black-box testing of (a fork of) `cardano-node` against a given point schedule.
 
 The test executable will communicate with `cardano-node` over network sockets,
 and will not use any specialized knowledge of the internals of `cardano-node`.
@@ -244,12 +244,35 @@ As a possible exception, we will assume that we can run `cardano-node` over
 
 We'll start with a simple testing approach, where we compare the resulting
 state of the NUT with the end state of the point schedule and make sure
-the simulated peers behave as expected.
+the simulated peers behave as expected. **We will not support arbitrary
+properties at this point.**
+
+
+#### Deliverables
+
+In this milestone, we will deliver a minimal implementation of `runner`,
+supporting:
+
+- (mindless, derived) parsing of point schedule test files
+- generating topology files
+- running point schedules
+- observing the state of the NUT
+- returning an appropriate error code of among `SUCCESS`, `INTERNAL_ERROR`,
+  `BAD_USAGE` or `TEST_FAILED`
+
+We explicitly *will not* implement anything around generators or shrinking in
+milestone 1. We assume point schedules can be obtained somehow, but we will
+require only enough in the way of point schedules to verify that our approach
+does what it ought.
+
 
 #### Plan
 
+<!-- TODO(sandy): do we still need this section, or can we wrap it into the global overview? -->
+
+
 1. The user obtains a point schedule from somewhere (generating these is part
-   of Milestone <TODO>)
+   of @sec:generators)
 2. The user invokes our test binary, passing in the point schedule as an
    argument.
 3. The test binary starts up the simulated peers, and returns a topology file.
@@ -257,11 +280,8 @@ the simulated peers behave as expected.
 5. `cardano-node` connects to our simulated peers
 6. Once all of the peers have been connected to, the point schedule begins
    running
-7. After the point schedule has finished, we **SOME HOW** observe the final
-   state of `cardano-node`
-
-   To accomplish this, can we create a new peer, who connects to the NUT, and
-   asks to be caught up?
+7. After the point schedule has finished, we observe the final state of
+   `cardano-node`.
 8. The server will exit with a return code corresponding to whether or not
    `cardano-node` ended in the correct state.
 
@@ -276,7 +296,33 @@ to find specific bugs on their consensus protocol implementation.
 Deliver a shrinking strategy to run our executable from [1] on subsequently
 smaller tests.
 
+
+#### Deliverables
+
+In this milestone, we will implement the shrinking functionality. In particular,
+we will make the following changes to `runner`:
+
+- Parse an optional `--shrink-index` flag
+- Parse an optional `--minimal-test-output` flag
+- Upon `TEST_FAILED`, try `extend`ing the shrink index. If extension is
+  possible, emit the new shrink index on stdout and return
+  `TEST_FAILED | CONTINUE_SHRINKING`. If extension is not possible and
+  `--minimal-test-output` was set, write the minimal test case out to this
+  filepath.
+- Upon `SUCCESS`, if `--shrink-index` was passed in, emit the result of `succ
+  shrinkIndex` on stdout, and return `SUCCESS | CONTINUE_SHRINKING`.
+
+In addition, we will deliver property tests ensuring that `ShrinkIndex`, `succ`,
+and `extend` correctly explore a shrink tree.
+
+We will also implement the `shrinkview` binary at this time, which accepts only
+a test file and shrink index, and outputs the shrunk test on stdout.
+
+
 #### Plan
+
+<!-- TODO(sandy): do we still need this? -->
+
 
 - Change milestone [1] binary to support a shrink index as input (pointing to were
   we currently are on the shrink tree).
@@ -294,56 +340,60 @@ client to run it.
 We want all our components to be stateless as a design choice for composability.
 This work does not preclude the possibility of implementing this.
 
+
 ### Milestone 3 - Amaru and other Implementations
 
 #### Goal
 
-At this point, the MVP is working as expected on the `cardano-node`;
-our goal now is to make sure this works for other implementations, and that our design
-is effectively decoupled from `cardano-node`. We will figure out the general
-requirements for any implementation that adheres to the consensus protocol.
+At this point, the MVP is working as expected on the `cardano-node`; our goal
+now is to ensure this works for other implementations, and that our design is
+decoupled from any internal details of `cardano-node`.
 
-To accomplish the above, in this milestone we make the test work on Amaru
-(Rust implementation).
+As a stretch goal: it would be very rewarding to actually find a test failure in
+another implementation. Care must be taken to ensure that this is, however, a
+failure in the node, and not some artifact of our testing procedure.
 
-_Stretch:_ Find a test failure in Amaru; which we might not get if its consensus
-implementation is correct. But if we find something, this would provide a compelling
-argument on the value of this test.
+
+#### Deliverables
+
+In this milestone, our primary deliverable will be to successfully test a point
+schedule against [Amaru](https://github.com/pragma-org/amaru). This will likely
+involve some hacking directly on Amaru, (eg to disable crypto, or to make
+timeouts configurable.)
+
+Our other deliverable here will be a high-level overview and analysis of the
+necessary changes required to test against Amaru. Presumably these will end up
+being the set of configurable options necessary for *any* implementation to test
+against our harness.
+
+We explicitly would like to know the expected *implementation burden* required
+on alternative nodes to actually use any of this testing machinery.
+
 
 #### Plan
 
 1. Make the test work on Amaru.
     1. Have a means of disabling crypto.
-    1. Ensure that it can parse our generated topology files.
-1. Document the necessary requirements from a node to run this tests.
-    * At the forefront, we have the previous two requirements (parse topology and disable crypto).
+    2. Ensure that it can parse our generated topology files.
+2. Document the necessary requirements from a node to run this tests.
+    * At the forefront, we have the previous two requirements (parse topology
+      and disable crypto).
 
-#### Questions
+
+#### Questions to Answer
 
 Do we need to simulate time? This might be related to configuration access to
 node timeouts (as Network delays would be irrelevant in this setting).
 
-### Milestone 4 - Generation of point schedules
 
-#### Goals
+#### Risks
 
-Create a separate utility that generates point schedules for specific testing properties.
-At this point, we design a file (serialization) format for these.
-
-Note: We will have versioning for the file format, as we work though its constraints.
-In the future we might want to generalize this to have a coupling between peer schedules
-and the properties being tested.
-
-#### Plan
-
-1. Design a serialization format for point schedules.
-1. Produce a binary capable of running different generators and output the serialized
-   point schedules.
-1. Connect the existing generators (alternatively, expose them).
-1. Figure out what other generators we need to write.
+As far as I (Sandy) know, our team has minimal knowledge of Rust. Depending of
+the difficulty of making the necessary changes, we might need to pull in
+external help.
 
 
-### Milestone 5 - Port Consensus Testsuite
+### Milestone 4 - Implement `testgen`
 
 #### Goal
 
@@ -355,12 +405,24 @@ the approach official. We will refactor the existing test suite into a reified
 This step will require patching `ouroboros-consensus`, which is why we want to
 have proven the technology before making upstream changes.
 
-#### Plan
 
-1. Port the existing `TestTree`s into a corresponding data structure.
-2. Give a fold from the new data structure back into `TestTree`s.
-3. Give a fold from the new data structure into data that `testgen` can
-   consume.
+#### Deliverables
+
+In this milestone, we will deliver:
+
+1. a design and specification of the serialization format for our test files
+2. corresponding changes to `runner` and `shrinkview` for parsing and
+   serializing these files
+3. we will port all of the existing ouroboros-consensus tests into a reified
+   `TestSuite` representation (see @sec:testsuite)
+
+In addition, we will deliver the `testgen` utility, including:
+
+1. support for the `generate` command, including selection of testclass and
+   optional seed
+2. support for the `list-all-classes`  command
+3. support for the `meta desired-passes` command
+
 
 #### Questions
 
