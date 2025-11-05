@@ -97,7 +97,7 @@ the NUT.
 
 <!-- TODO(sandy): define NUT sooner -->
 
-Alterantive nodes which wish to test against `runner` (the "nodes under test",
+Alternative nodes which wish to test against `runner` (the "nodes under test",
 or *NUTs*) can parse the generated topology file and connect to the simulated
 peers. Once they have all been connected to, the point schedule will begin
 running. The simulated peers will follow the point schedule, sending their
@@ -112,6 +112,26 @@ The `shrinkView` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
+
+
+### Usage
+
+The **test generator** CLI tool supports, at least, the following operations:
+
+- `list-classes` to list all available test classes.
+- `generate` to produce a test case (in serialized form) for a test class.
+   This operation has optional flags `--seed=NUM` to specify the seed for the generator and
+   `--minimal-counterexample=FILE` that dumps the resulting point schedule
+   to a file if no further shrinking is possible.
+- `meta` to access test class metadata.
+
+On the other hand, the **test runner** CLI tool supports the following optional flags:
+
+- `--topology-file=OUTPUT/PATH.top` specifies the output path for the topology file.
+
+These operations provide the primitives needed to orchestrate a QuickCheck-like
+workflow. For example, users are free to run the entire test suite by looping
+over testgen list-all-tests.
 
 
 ### Exit Codes
@@ -163,6 +183,44 @@ manually "pump" the shrinker.
   a counterexample, what happens when the peer schedule is empty?
 
 ## Implementation Plan
+
+To expose the `cardano-node` testing infrastructure we reify the test
+implementation using a `ConsensusTest` data structure.
+
+As things stand, each test definition is implicit within calls to
+`forAllGenesisTest`. In order to expose the existing test suite to our
+`testgen` and `runner` tools, we propose reifying each test definitions as
+an instance of a `ConsensusTest` data type, which are arranged into a
+`TestSuit` data structure that we manipulate.
+
+```haskell
+data TestClass
+
+data TestSuite a
+instance Semigroup (TestSuite a)
+instance Monoid (TestSuite a)
+
+insert :: TestClass -> a -> TestSuite a -> TestSuite a
+toListWithKey :: TestSuite a -> [(TestClass, a)]
+
+
+data ConsensusTest = ConsensusTest
+  { generator :: Gen PointSchedule
+  , shrinker :: PointSchedule -> [PointSchedule]
+  , property :: PointSchedule -> IO Bool
+  , desiredSuccesses :: Int
+  }
+
+allTheTests :: TestSuite ConsensusTest
+
+runConsensusTest :: ConsensusTest -> Property
+```
+
+The change to `cardano-node` would be minimal, and it essentially boils
+down to implementing `runConsensusTest` using `forAllGenesisTest` to get this
+as they were. Along this lines, `toTasty :: TestSuite ConsensusTest -> TestTree`
+would essential traverse the `TestSuite` using `runConsensusTest`.
+
 
 ## Milestones
 
