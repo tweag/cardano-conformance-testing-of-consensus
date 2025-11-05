@@ -433,8 +433,22 @@ In addition, we will deliver the `testgen` utility, including:
 
 ### Milestone 6 - UX Improvement
 
-Figure out how to account for the identified common use cases to improve on UX.
-How annoying it is to use? What are the crucial pain points?
+#### Goals
 
-Clean up, refine and **make it useable**.
+At this point the harness is working and usable. However, it has been built with
+composability in mind. In this milestone we will work on building reusable tools
+for common workflows.
+
+
+#### Deliverables
+
+- We will provide a tool that will automatically run the shrinking loop --- run
+  test, and rerun if `CONTINUE_SHRINKING` is masked into the exit.
+- We will provide a tool to run the entire test suite against a node. It will
+  run each test the `desiredPasses` number of times, but not perform shrinking.
+
+
+#### Questions
+
+What other things can we do to improve the usability of these tools?
 
