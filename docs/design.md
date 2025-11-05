@@ -94,13 +94,10 @@ whose `localRoots` will point to the simulated peers. We will create an
 additional `localRoot` peer whose job is to record all messages diffused from
 the NUT.
 
-<!-- TODO(sandy): define NUT sooner -->
-
-Alternative nodes which wish to test against `runner` (the "nodes under test",
-or *NUTs*) can parse the generated topology file and connect to the simulated
-peers. Once they have all been connected to, the point schedule will begin
-running. The simulated peers will follow the point schedule, sending their
-mocked blocks to the NUT.
+Alternative NUTs which wish to test against `runner` need to parse the generated
+topology file and connect to the simulated peers. Once they have all been
+connected to, the point schedule will begin running. The simulated peers will
+follow the point schedule, sending their mocked blocks to the NUT.
 
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
