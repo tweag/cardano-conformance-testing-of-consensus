@@ -284,7 +284,34 @@ and the properties being tested.
 1. Connect the existing generators (alternatively, expose them).
 1. Figure out what other generators we need to write.
 
-### Milestone 5 - UX Improvement
+
+### Milestone 5 - Port Consensus Testsuite
+
+#### Goal
+
+Now that we have a proven design and working system, we can commit to making
+the approach official. We will refactor the existing test suite into a reified
+`TestSuite` (see @sec:testsuite), from which we can extract both the existing
+`tasty` test suite, as well as the data for `testgen`.
+
+This step will require patching `ouroboros-consensus`, which is why we want to
+have proven the technology before making upstream changes.
+
+#### Plan
+
+1. Port the existing `TestTree`s into a corresponding data structure.
+2. Give a fold from the new data structure back into `TestTree`s.
+3. Give a fold from the new data structure into data that `testgen` can
+   consume.
+
+#### Questions
+
+- Can `ouroboros-consensus:consensus-tests` remain as the canonical place for
+  this data? Is it possible for our app to depend directly on the test suite of
+  another library? We might need to do some cabal shuffling here.
+
+
+### Milestone 6 - UX Improvement
 
 Figure out how to account for the identified common use cases to improve on UX.
 How annoying it is to use? What are the crucial pain points?
