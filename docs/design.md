@@ -296,7 +296,33 @@ to find specific bugs on their consensus protocol implementation.
 Deliver a shrinking strategy to run our executable from [1] on subsequently
 smaller tests.
 
+
+#### Deliverables
+
+In this milestone, we will implement the shrinking functionality. In particular,
+we will make the following changes to `runner`:
+
+- Parse an optional `--shrink-index` flag
+- Parse an optional `--minimal-test-output` flag
+- Upon `TEST_FAILED`, try `extend`ing the shrink index. If extension is
+  possible, emit the new shrink index on stdout and return
+  `TEST_FAILED | CONTINUE_SHRINKING`. If extension is not possible and
+  `--minimal-test-output` was set, write the minimal test case out to this
+  filepath.
+- Upon `SUCCESS`, if `--shrink-index` was passed in, emit the result of `succ
+  shrinkIndex` on stdout, and return `SUCCESS | CONTINUE_SHRINKING`.
+
+In addition, we will deliver property tests ensuring that `ShrinkIndex`, `succ`,
+and `extend` correctly explore a shrink tree.
+
+We will also implement the `shrinkview` binary at this time, which accepts only
+a test file and shrink index, and outputs the shrunk test on stdout.
+
+
 #### Plan
+
+<!-- TODO(sandy): do we still need this? -->
+
 
 - Change milestone [1] binary to support a shrink index as input (pointing to were
   we currently are on the shrink tree).
@@ -313,6 +339,7 @@ Alternative: Automatically generate the next shrinking candidate and ask the
 client to run it.
 We want all our components to be stateless as a design choice for composability.
 This work does not preclude the possibility of implementing this.
+
 
 ### Milestone 3 - Amaru and other Implementations
 
