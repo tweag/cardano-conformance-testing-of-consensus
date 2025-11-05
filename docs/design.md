@@ -110,15 +110,16 @@ useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
 
 
-### Usage
+### Supported operations and flags
 
 The **test generator** CLI tool supports, at least, the following operations:
 
 - `list-classes` to list all available test classes.
-- `generate` to produce a test case (in serialized form) for a test class.
-   This operation has optional flags `--seed=NUM` to specify the seed for the generator and
-   `--minimal-counterexample=FILE` that dumps the resulting point schedule
-   to a file if no further shrinking is possible.
+- `generate` to produce a test file for a test class.
+   This operation has the following optional flags: 
+   - `--seed=NUM` to specify a seed for the generator.
+   - `--minimal-counterexample=FILE` that dumps the resulting point schedule
+   to a `FILE` if no further shrinking is possible.
 - `meta` to access test class metadata.
 
 On the other hand, the **test runner** CLI tool supports the following optional flags:
@@ -127,7 +128,7 @@ On the other hand, the **test runner** CLI tool supports the following optional 
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
 workflow. For example, users are free to run the entire test suite by looping
-over testgen list-all-tests.
+over `testgen list-classes`.
 
 
 ### Exit Codes
