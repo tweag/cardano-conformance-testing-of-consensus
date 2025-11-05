@@ -31,17 +31,17 @@ sequenceDiagram
     Note right of Runner: Runner observes<br/>final state
     Note right of Runner: Runner evaluates<br/>test property
 
-  alt exit_code = KEEP_SHRINKING
+  alt testBit exit_code KEEP_SHRINKING
     Runner ->> User: shrinkIndex
 
   end
 
   end
 
-  alt exit_code = TEST_FAILED
+  alt testBit exit_code TEST_FAILED
     Runner ->> User: minimal-couterexample
   else
-    Runner ->> User: Test passed!
+    Note over Runner,NUT: Test passed
   end
 ```
 
