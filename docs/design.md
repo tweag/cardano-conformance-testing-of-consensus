@@ -394,7 +394,7 @@ node timeouts (as Network delays would be irrelevant in this setting).
 
 #### Risks
 
-As far as I (Sandy) know, our team has minimal knowledge of Rust. Depending of
+With the current lineup, our team has minimal knowledge of Rust. Depending of
 the difficulty of making the necessary changes, we might need to pull in
 external help.
 
