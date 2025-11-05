@@ -70,23 +70,22 @@ following four desiderata:
 
 ### Design
 
-We will ship three separate tools:
+We will ship three separate CLI tools:
 
-1. Test Generator (testgen)
-2. Test Runner (runner)
-3. Shrink Viewer (shrinkview)
+1. Test Generator (`testgen`)
+2. Test Runner (`runner`)
+3. Shrink Viewer (`shrinkview`)
 
-The purpose of `testgen` is to generate test cases. Testgen will be a CLI tool
-which accepts arguments to select a specific class of tests, and potentially
-some test-specific tuning knobs (to eg, change the "difficulty" of the test.)
-Each class of tests will have an associated `Gen`erator, which testgen will
-invoke to instantiate a specific instance of the test class. Testgen will
-output a test file, the contents of which will contain a point schedule and
+The purpose of `testgen` is to generate test cases; it accepts arguments to
+select a specific class of tests, and potentially some test-specific tuning knobs
+(to eg, change the "difficulty" of the test.) Each class of tests will have an
+associated `Gen`erator, which `testgen` will invoke to instantiate the test
+class. Its output will be a test file containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
 <!-- TODO(sandy): how do we serialize properties? -->
 
-The `runner` CLI tool accepts a test file (as output by `testgen`) and
+The `runner` tool accepts a test file (as output by `testgen`) and
 a *shrink index* (see @sec:shrinking), and spins up simulated peers
 corresponding to the embedded point schedule. The `runner` tool will then
 output a [topology
