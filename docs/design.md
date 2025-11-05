@@ -181,14 +181,11 @@ manually "pump" the shrinker.
 
 ## Implementation Plan
 
-To expose the `cardano-node` testing infrastructure we reify the test
-implementation using a `ConsensusTest` data structure.
-
-As things stand, each test definition is implicit within calls to
+As things stand, each test property is implicit within calls to
 `forAllGenesisTest`. In order to expose the existing test suite to our
-`testgen` and `runner` tools, we propose reifying each test definitions as
+`testgen` and `runner` tools, we propose reifying each test property as
 an instance of a `ConsensusTest` data type, which are arranged into a
-`TestSuit` data structure that we manipulate.
+`TestSuit` data structure.
 
 ```haskell
 data TestClass
@@ -214,9 +211,10 @@ runConsensusTest :: ConsensusTest -> Property
 ```
 
 The change to `cardano-node` would be minimal, and it essentially boils
-down to implementing `runConsensusTest` using `forAllGenesisTest` to get this
-as they were. Along this lines, `toTasty :: TestSuite ConsensusTest -> TestTree`
-would essential traverse the `TestSuite` using `runConsensusTest`.
+down to implementing `runConsensusTest` using `forAllGenesisTest`, which should
+have no local effect on the implementation. Along this lines,
+`toTasty :: TestSuite ConsensusTest -> TestTree` would essentially traverse the
+`TestSuite` using `runConsensusTest`.
 
 
 ## Milestones
