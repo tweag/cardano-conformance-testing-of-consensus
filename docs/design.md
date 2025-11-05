@@ -116,7 +116,7 @@ to iterate the shrinking all the way down to a minimal example.
 
 ### Usage
 
-The test generator CLI tool should at least support the following operations:
+The **test generator** CLI tool supports, at least, the following operations:
 
 - `list-classes` to list all available test classes.
 - `generate` to produce a test case (in serialized form) for a test class.
@@ -125,68 +125,13 @@ The test generator CLI tool should at least support the following operations:
    to a file if no further shrinking is possible.
 - `meta` to access test class metadata.
 
-To expose the `cardano-node` testing infrastructure we reify the test
-implementation using a `Test` data structure, which is we access with `testgen`
-using the `meta` operation.
+On the other hand, the **test runner** CLI tool supports the following optional flags:
 
-```haskell
-data TestClass
-
-data TestSuite a
-instance Semigroup (TestSuite a)
-instance Monoid (TestSuite a)
-
-insert :: TestClass -> a -> TestSuite a -> TestSuite a
-toListWithKey :: TestSuite a -> [(TestClass, a)]
-
-
-data ConsensusTest = ConsensusTest
-  { generator :: Gen PointSchedule
-  , shrinker :: PointSchedule -> [PointSchedule]
-  , property :: PointSchedule -> IO Bool
-  , desiredSuccesses :: Int
-  }
-
-allTheTests :: TestSuite ConsensusTest
-```
+- `--topology-file=OUTPUT/PATH.top` specifies the output path for the topology file.
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
-workflow. For example, using a script to iterate on each of the available
-test classes in parallel, running each one a number of times given by the
-`passes` field.
-
-```pseudocode
-parallel $ for TESTCLASS in (testgen list-all-tests):
-
-    passes = testgen meta TESTCLASS passes
-    touch TESTCLASS.log
-
-    for 1 <= i <= passes:
-
-        testgen generate TESTCLASS > mytest.test
-
-        runner testfile --topology-file=file.top > runner.log 2>&1
-
-        node --topology=file.top
-
-        # Node connects to simulated peers and test starts
-
-        wait for runner
-        (shrink_index, exit_code) = cat runner.log
-
-        kill node
-
-        if exit_code != 0:
-            stop this TESTCLASS's loop
-            return (test-file, shrinkIndex, exit-code)
-
-        print (test-file, exit-code) >> TESTCLASS.log
-
-    end
-
-end
-
-```
+workflow. For example, users are free to run the entire test suite by looping
+over testgen list-all-tests.
 
 
 ### Exit Codes
@@ -238,6 +183,44 @@ manually "pump" the shrinker.
   a counterexample, what happens when the peer schedule is empty?
 
 ## Implementation Plan
+
+To expose the `cardano-node` testing infrastructure we reify the test
+implementation using a `ConsensusTest` data structure.
+
+As things stand, each test definition is implicit within calls to
+`forAllGenesisTest`. In order to expose the existing test suite to our
+`testgen` and `runner` tools, we propose reifying each test definitions as
+an instance of a `ConsensusTest` data type, which are arranged into a
+`TestSuit` data structure that we manipulate.
+
+```haskell
+data TestClass
+
+data TestSuite a
+instance Semigroup (TestSuite a)
+instance Monoid (TestSuite a)
+
+insert :: TestClass -> a -> TestSuite a -> TestSuite a
+toListWithKey :: TestSuite a -> [(TestClass, a)]
+
+
+data ConsensusTest = ConsensusTest
+  { generator :: Gen PointSchedule
+  , shrinker :: PointSchedule -> [PointSchedule]
+  , property :: PointSchedule -> IO Bool
+  , desiredSuccesses :: Int
+  }
+
+allTheTests :: TestSuite ConsensusTest
+
+runConsensusTest :: ConsensusTest -> Property
+```
+
+The change to `cardano-node` would be minimal, and it essentially boils
+down to implementing `runConsensusTest` using `forAllGenesisTest` to get this
+as they were. Along this lines, `toTasty :: TestSuite ConsensusTest -> TestTree`
+would essential traverse the `TestSuite` using `runConsensusTest`.
+
 
 ## Milestones
 
