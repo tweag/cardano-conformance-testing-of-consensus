@@ -240,7 +240,7 @@ provide an extremely bare-bones minimum viable product (MVP) which illustrates
 that the major engineering hurdles can be solved and that our approach is
 feasible.
 
-To that end, we will deliver a barebones version of `runner` which can perform
+To that end, we will deliver a version of `runner` which can perform
 black-box testing of (a fork of) `cardano-node` against a given point schedule.
 
 The test executable will communicate with `cardano-node` over network sockets,
