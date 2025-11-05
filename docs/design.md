@@ -35,10 +35,18 @@ test by taking advantage of two insights:
    simulate multiple nodes and look for agreement - instead, we run only
    a single node and judge the correctness of its responses to stimuli.
 
-The testing framework thus makes use of a single coordinated *point schedule,*
+The testing framework thus makes use of a single coordinated *point schedule[^ps],*
 which is used to simulate multiple upstream (possibly adversarial, possibly
 colluding) peers. After evaluation of the point schedule, the Node Under Test
 (NUT) is validated to ensure it ends up with the correct chain.
+
+[^ps]: A "point schedule" is a set of tables, having one table per simulated  
+peer. Each row on the table corresponds to a point in time, and each column  
+describe a state variable (in order of update priority according to the current  
+chain selection): the tip of the hypothetical chain selection, the most recent  
+header that the peer should send to the NUT and the most recent block that the  
+peer should send to the NUT. See the relevant documentation  
+[here](https://github.com/IntersectMBO/ouroboros-consensus/blob/374ef153e20d83ad3d42d850ce560b67034ac578/ouroboros-consensus-diffusion/test/consensus-test/Test/Consensus/PointSchedule/SinglePeer.hs).
 
 Whilst the point schedule currently is implemented inside the Haskell node, its
 declarative nature makes it possible to export this testing method and make it
