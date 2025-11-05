@@ -97,7 +97,7 @@ the NUT.
 
 <!-- TODO(sandy): define NUT sooner -->
 
-Alterantive nodes which wish to test against `runner` (the "nodes under test",
+Alternative nodes which wish to test against `runner` (the "nodes under test",
 or *NUTs*) can parse the generated topology file and connect to the simulated
 peers. Once they have all been connected to, the point schedule will begin
 running. The simulated peers will follow the point schedule, sending their
@@ -112,6 +112,76 @@ The `shrinkView` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
+
+
+### Usage
+
+The test generator CLI tool should at least support the following operations:
+
+- `list-classes` to list all available test classes.
+- `generate` to produce a test case (in serialized form) for a test class.
+   This operation has `--seed=NUM` to specify the seed for the generator and
+   `--minimal-counterexample=FILE` that dumps the resulting point schedule
+   to a file when no further shrinking is possible.
+- `meta` to access test class data.
+
+To expose the `cardano-node` testing infrastructure we reify the test
+implementation using a `Test` data structure, which is we access with `testgen`
+using the `meta` operation.
+
+```haskell
+data TestClass
+type ConsensusTestSuite = Map TestClass Test
+
+data Test = Test
+  { generator :: Gen PointSchedule
+  , shrinker :: PointSchedule -> [PointSchedule]
+  , property :: PointSchedule -> IO Bool
+  , passes :: Int
+  }
+
+allTheTests :: ConsensusTestSuite
+```
+
+These operations provide the primitives needed to orchestrate a QuickCheck-like
+workflow. For example, using a script to iterate on each of the available
+test classes in parallel, running each one a number of times given by the
+`passes` field.
+
+```pseudocode
+parallel $ for TESTCLASS in (testgen list-all-tests):
+
+    passes = testgen meta TESTCLASS passes
+    touch TESTCLASS.log
+
+    for 1 <= i <= passes:
+
+        seed = random()
+
+        testfile = testgen generate TESTCLASS --seed=seed
+
+        runner testfile --topology-file=file.top > runner.log 2>&1
+
+        node --topology=file.top
+
+        # Node connects to simulated peers and test starts
+
+        wait for runner
+        (shrink_index, exit_code) = cat runner.log
+
+        kill node
+
+        if exit_code != 0:
+            stop this TESTCLASS's loop
+            return (test-file, shrinkIndex, exit-code)
+
+        print (test-file, exit-code) >> TESTCLASS.log
+
+    end
+
+end
+
+```
 
 
 ### Exit Codes
