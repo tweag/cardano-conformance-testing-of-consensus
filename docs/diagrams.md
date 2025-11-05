@@ -44,3 +44,30 @@ sequenceDiagram
     Runner ->> User: Test passed!
   end
 ```
+
+```mermaid
+---
+title: Manual Shrinking
+---
+flowchart TD
+  start([Start test])
+  runner[Test Runner]
+  result{Global pass?}
+  resultL{Local pass?}
+  shrink{Shrink?}
+  generator[Test Generator]
+  index[/Shrink index/]
+  finish([End test])
+
+  start -- TESTCLASS --> generator
+  generator -- file.test --> runner
+  runner --> result
+  result -- No --> shrink
+  result -- Yes --> finish
+  shrink -- No --> finish
+  shrink -- Yes --> index
+  runner --> resultL
+  resultL -- Yes --> shrink
+  resultL -- No --> shrink
+  index --> runner
+```
