@@ -118,7 +118,7 @@ useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
 
 
-### Supported operations and flags
+### Supported Operations and Flags
 
 The **test generator** CLI tool supports, at least, the following operations:
 
