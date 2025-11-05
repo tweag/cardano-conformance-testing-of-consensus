@@ -78,23 +78,22 @@ following four desiderata:
 
 ### Design
 
-We will ship three separate tools:
+We will ship three separate CLI tools:
 
-1. Test Generator (testgen)
-2. Test Runner (runner)
-3. Shrink Viewer (shrinkview)
+1. Test Generator (`testgen`)
+2. Test Runner (`runner`)
+3. Shrink Viewer (`shrinkview`)
 
-The purpose of `testgen` is to generate test cases. Testgen will be a CLI tool
-which accepts arguments to select a specific class of tests, and potentially
-some test-specific tuning knobs (to eg, change the "difficulty" of the test.)
-Each class of tests will have an associated `Gen`erator, which testgen will
-invoke to instantiate a specific instance of the test class. Testgen will
-output a test file, the contents of which will contain a point schedule and
+The purpose of `testgen` is to generate test cases; it accepts arguments to
+select a specific class of tests, and potentially some test-specific tuning knobs
+(to eg, change the "difficulty" of the test.) Each class of tests will have an
+associated `Gen`erator, which `testgen` will invoke to instantiate the test
+class. Its output will be a test file containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
 <!-- TODO(sandy): how do we serialize properties? -->
 
-The `runner` CLI tool accepts a test file (as output by `testgen`) and
+The `runner` tool accepts a test file (as output by `testgen`) and
 a *shrink index* (see @sec:shrinking), and spins up simulated peers
 corresponding to the embedded point schedule. The `runner` tool will then
 output a [topology
@@ -103,13 +102,10 @@ whose `localRoots` will point to the simulated peers. We will create an
 additional `localRoot` peer whose job is to record all messages diffused from
 the NUT.
 
-<!-- TODO(sandy): define NUT sooner -->
-
-Alternative nodes which wish to test against `runner` (the "nodes under test",
-or *NUTs*) can parse the generated topology file and connect to the simulated
-peers. Once they have all been connected to, the point schedule will begin
-running. The simulated peers will follow the point schedule, sending their
-mocked blocks to the NUT.
+Alternative nodes which wish to test against `runner` need to parse the generated
+topology file and connect to the simulated peers. Once they have all been
+connected to, the point schedule will begin running. The simulated peers will
+follow the point schedule, sending their mocked blocks to the NUT.
 
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
@@ -122,15 +118,16 @@ useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
 
 
-### Usage
+### Supported operations and flags
 
 The **test generator** CLI tool supports, at least, the following operations:
 
 - `list-classes` to list all available test classes.
-- `generate` to produce a test case (in serialized form) for a test class.
-   This operation has optional flags `--seed=NUM` to specify the seed for the generator and
-   `--minimal-counterexample=FILE` that dumps the resulting point schedule
-   to a file if no further shrinking is possible.
+- `generate` to produce a test file for a test class.
+   This operation has the following optional flags: 
+   - `--seed=NUM` to specify a seed for the generator.
+   - `--minimal-counterexample=FILE` that dumps the resulting point schedule
+   to a `FILE` if no further shrinking is possible.
 - `meta` to access test class metadata.
 
 On the other hand, the **test runner** CLI tool supports the following optional flags:
@@ -139,7 +136,7 @@ On the other hand, the **test runner** CLI tool supports the following optional 
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
 workflow. For example, users are free to run the entire test suite by looping
-over testgen list-all-tests.
+over `testgen list-classes`.
 
 
 ### Exit Codes
@@ -192,14 +189,11 @@ manually "pump" the shrinker.
 
 ## Implementation Plan
 
-To expose the `cardano-node` testing infrastructure we reify the test
-implementation using a `ConsensusTest` data structure.
-
-As things stand, each test definition is implicit within calls to
+As things stand, each test property is implicit within calls to
 `forAllGenesisTest`. In order to expose the existing test suite to our
-`testgen` and `runner` tools, we propose reifying each test definitions as
+`testgen` and `runner` tools, we propose reifying each test property as
 an instance of a `ConsensusTest` data type, which are arranged into a
-`TestSuit` data structure that we manipulate.
+`TestSuit` data structure.
 
 ```haskell
 data TestClass
@@ -225,9 +219,10 @@ runConsensusTest :: ConsensusTest -> Property
 ```
 
 The change to `cardano-node` would be minimal, and it essentially boils
-down to implementing `runConsensusTest` using `forAllGenesisTest` to get this
-as they were. Along this lines, `toTasty :: TestSuite ConsensusTest -> TestTree`
-would essential traverse the `TestSuite` using `runConsensusTest`.
+down to implementing `runConsensusTest` using `forAllGenesisTest`, which should
+have no local effect on the implementation. Along this lines,
+`toTasty :: TestSuite ConsensusTest -> TestTree` would essentially traverse the
+`TestSuite` using `runConsensusTest`.
 
 
 ## Milestones
