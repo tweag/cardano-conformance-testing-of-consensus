@@ -393,27 +393,7 @@ the difficulty of making the necessary changes, we might need to pull in
 external help.
 
 
-### Milestone 4 - Generation of point schedules
-
-#### Goals
-
-Create a separate utility that generates point schedules for specific testing properties.
-At this point, we design a file (serialization) format for these.
-
-Note: We will have versioning for the file format, as we work though its constraints.
-In the future we might want to generalize this to have a coupling between peer schedules
-and the properties being tested.
-
-#### Plan
-
-1. Design a serialization format for point schedules.
-1. Produce a binary capable of running different generators and output the serialized
-   point schedules.
-1. Connect the existing generators (alternatively, expose them).
-1. Figure out what other generators we need to write.
-
-
-### Milestone 5 - Port Consensus Testsuite
+### Milestone 4 - Implement `testgen`
 
 #### Goal
 
@@ -425,12 +405,24 @@ the approach official. We will refactor the existing test suite into a reified
 This step will require patching `ouroboros-consensus`, which is why we want to
 have proven the technology before making upstream changes.
 
-#### Plan
 
-1. Port the existing `TestTree`s into a corresponding data structure.
-2. Give a fold from the new data structure back into `TestTree`s.
-3. Give a fold from the new data structure into data that `testgen` can
-   consume.
+#### Deliverables
+
+In this milestone, we will deliver:
+
+1. a design and specification of the serialization format for our test files
+2. corresponding changes to `runner` and `shrinkview` for parsing and
+   serializing these files
+3. we will port all of the existing ouroboros-consensus tests into a reified
+   `TestSuite` representation (see @sec:testsuite)
+
+In addition, we will deliver the `testgen` utility, including:
+
+1. support for the `generate` command, including selection of testclass and
+   optional seed
+2. support for the `list-all-classes`  command
+3. support for the `meta desired-passes` command
+
 
 #### Questions
 
