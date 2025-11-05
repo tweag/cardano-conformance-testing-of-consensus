@@ -291,31 +291,3 @@ How annoying it is to use? What are the crucial pain points?
 
 Clean up, refine and **make it useable**.
 
-## Notes
-
-Other information from the original proposal to take into account during the implementation.
-
-### Dependencies
-
-- The Consensus Team will need to review the Pull Requests that enrich the point schedule
-generator (and also add corresponding tests to the existing test suite).
-- The architects of alternative nodes would provide very useful feedback at a few phases
-throughout the work.
-
-### Maintenance
-
-- As the Consensus algorithm expands—Peras, Leios, etc—it would make sense to enrich
-this testing strategy. However, even if that did not happen immediately, maintaining tests
-with just a focus on Praos remains important, since Praos is still the foundation that Peras
-and Leios enrich.
-- It is useful to note that the exact interface of the nodes under test must be relatively
-stable, since it’s primarily the same interface that they use to communicate with peers on
-mainnet.
-
-### Key Deliverables
-
-- Point schedule generators that are less focused on the syncing node.
-- A design for how to manage time in this derived testing setup that no longer benefits from
-the io-sim framework.
-- The utility for simulating a node’s upstream peers according to the generated point
-schedule and also shrinking that point schedule upon failures.
