@@ -345,30 +345,53 @@ This work does not preclude the possibility of implementing this.
 
 #### Goal
 
-At this point, the MVP is working as expected on the `cardano-node`;
-our goal now is to make sure this works for other implementations, and that our design
-is effectively decoupled from `cardano-node`. We will figure out the general
-requirements for any implementation that adheres to the consensus protocol.
+At this point, the MVP is working as expected on the `cardano-node`; our goal
+now is to ensure this works for other implementations, and that our design is
+decoupled from any internal details of `cardano-node`.
 
-To accomplish the above, in this milestone we make the test work on Amaru
-(Rust implementation).
+As a stretch goal: it would be very rewarding to actually find a test failure in
+another implementation. Care must be taken to ensure that this is, however, a
+failure in the node, and not some artifact of our testing procedure.
 
-_Stretch:_ Find a test failure in Amaru; which we might not get if its consensus
-implementation is correct. But if we find something, this would provide a compelling
-argument on the value of this test.
+
+#### Deliverables
+
+In this milestone, our primary deliverable will be to successfully test a point
+schedule against [Amaru](https://github.com/pragma-org/amaru). This will likely
+involve some hacking directly on Amaru, (eg to disable crypto, or to make
+timeouts configurable.)
+
+Our other deliverable here will be a high-level overview and analysis of the
+necessary changes required to test against Amaru. Presumably these will end up
+being the set of configurable options necessary for *any* implementation to test
+against our harness.
+
+We explicitly would like to know the expected *implementation burden* required
+on alternative nodes to actually use any of this testing machinery.
+
 
 #### Plan
 
 1. Make the test work on Amaru.
     1. Have a means of disabling crypto.
-    1. Ensure that it can parse our generated topology files.
-1. Document the necessary requirements from a node to run this tests.
-    * At the forefront, we have the previous two requirements (parse topology and disable crypto).
+    2. Ensure that it can parse our generated topology files.
+2. Document the necessary requirements from a node to run this tests.
+    * At the forefront, we have the previous two requirements (parse topology
+      and disable crypto).
 
-#### Questions
+
+#### Questions to Answer
 
 Do we need to simulate time? This might be related to configuration access to
 node timeouts (as Network delays would be irrelevant in this setting).
+
+
+#### Risks
+
+As far as I (Sandy) know, our team has minimal knowledge of Rust. Depending of
+the difficulty of making the necessary changes, we might need to pull in
+external help.
+
 
 ### Milestone 4 - Generation of point schedules
 
