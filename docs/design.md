@@ -24,7 +24,7 @@ nor that they have access to a QuickCheck-like library.
 
 The tests we'd like to expose to alternative implementations are in the "Node
 vs Environment" style. In effect, while we are ultimately interested in the
-behaviour of multiple nodes agreeing on the "right" chain, we can more easily
+behavior of multiple nodes agreeing on the "right" chain, we can more easily
 test by taking advantage of two insights:
 
 1. The logic of identifying the honest chain locally is tricky, but it is very
