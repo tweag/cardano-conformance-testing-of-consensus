@@ -107,6 +107,13 @@ topology file and connect to the simulated peers. Once they have all been
 connected to, the point schedule will begin running. The simulated peers will
 follow the point schedule, sending their mocked blocks to the NUT.
 
+Who drives the *ticking* of the schedule remains an open question, dependent of
+the trade-off between node implementation burden and testing time.
+On the one hand, if the ticking is driven by the NUT, the simulated run can
+be optimized for it. Alternatively, the ticking could be driven by the `runner`
+itself, using tunable timeouts with defaults aiming to balance testing time
+and node throughput.
+
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
 ensure the desired property holds. Depending on the result of the test and the
