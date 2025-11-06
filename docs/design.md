@@ -178,6 +178,70 @@ When the `CONTINUE_SHRINKING` bit is part of the exit code, the user is
 encouraged to restart the `runner` with the new shrink index, in order to
 manually "pump" the shrinker.
 
+### Shrink Index
+
+The shrinking functionality depends on the following semantics of the
+`ShrinkIndex`.
+
+```haskell
+data PointSchedule
+instance PartialOrd PointSchedule
+
+data ShrinkIndex
+instance Ord ShrinkIndex
+
+-- Given a point schedule and an index,
+-- we produce the corresponding shrunk point schedule
+-- if it exists.
+lookup :: PointSchedule -> ShrinkIndex -> Maybe PointSchedule
+
+-- Single shrink step
+shrink :: PointSchedule -> [PointSchedule]
+
+-- On local success, we try the next shrink index.
+succ :: ShrinkIndex -> ShrinkInbdex
+
+-- On failure, we extend the shrink index.
+extend :: ShrinkIndex -> ShrinkIndex
+
+-- No shrinking yet
+empty :: Index
+
+-- We decide how to pick the next index according to the test result
+next :: ShrinkIndex -> PointSchedule -> Bool -> ShrinkIndex
+next i pass
+ | pass && i == empty = empty
+ | pass && lookup ps (succ i) == Nothing = i -- ^ Minimal counter example
+ | pass = succ i
+ | not pass && lookup ps (extend i) == Nothing = i -- ^ Minimal counter example
+ | otherwise = extend i
+
+uncons :: Index -> Maybe (Int, Index)
+
+
+-- With the following properties
+
+succ empty == empty
+
+uncons (extend empty) == (0,empty)
+
+lookup ps empty == Just ps
+
+-- The next index cannot produce a bigger point schedule
+compare (lookup ps $ next i pass) (lookup ps i) /= GT
+
+-- The next two properties state that the only case where
+-- either 'succ' or 'extend' produce an equal sized point schedule
+-- is when they correspond to no schedule at all. 
+
+compare shrinked succShrinked == EQ <=> (shrinked == Nothing && succShrink == Nothing)
+  where shrinked = lookup ps i
+        succShrink = lookup ps (succ i)
+        
+compare shrinked extShrinked == EQ <=> (shrinked == Nothing && extShrinked == Nothing)
+  where shrinked = lookup ps i
+        extShrinked = lookup ps (extend i)
+```
 
 ## Alternatives
 
