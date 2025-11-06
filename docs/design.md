@@ -91,8 +91,6 @@ associated `Gen`erator, which `testgen` will invoke to instantiate the test
 class. Its output will be a test file containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
-<!-- TODO(sandy): how do we serialize properties? -->
-
 The `runner` tool accepts a test file (as output by `testgen`) and
 a *shrink index* (see @sec:shrinking), and spins up simulated peers
 corresponding to the embedded point schedule. The `runner` tool will then
@@ -112,24 +110,79 @@ can compare the final state of the NUT (as observed by the testing peer) and
 ensure the desired property holds. Depending on the result of the test and the
 state of the shrink index, we will perform different actions (see @sec:exit-codes.)
 
+It is important to note that a single invocation of the composition `runner
+. testgen` correponds to a single unit test. Users are encouraged to run this
+composition in a loop, to gain the usual assurances given by property tests.
+
+If a given test fails, and shrinking is desired, users can rerun `runner` with
+the outputted shrink index. The pair `(testfile, shrinkindex)` is the entirety
+of the shrink search state. By explicitly threading this state through flags
+and stdout, the system is stateless.
+
+
+```mermaid
+---
+title: Basic Testing Workflow
+---
+sequenceDiagram
+
+  participant PSG as Test Generator
+  actor User
+  participant Runner as Test Runner
+  participant NUT as Node Under Test
+
+  Note over User,PSG: Choose test property
+  User ->> PSG: testgen generate TESTCLASS
+  PSG ->> User: file.test
+
+  loop for shrinkIndex
+
+    User ->> Runner: runner file.test shrinkIndex
+    Runner ->> User: file.topology
+    Note right of Runner: Runner spins-up<br/>simulated peers
+    User ->> NUT: node --topology-file=file.topology
+
+    NUT -> Runner: Peer connection
+    Runner -) NUT: Mock blocks
+    NUT -) Runner: Diffused messages
+    Runner -) NUT: ...
+    Note over Runner,NUT: Simulation ends
+
+    Note right of Runner: Runner observes<br/>final state
+    Note right of Runner: Runner evaluates<br/>test property
+
+  alt testBit exit_code KEEP_SHRINKING
+    Runner ->> User: shrinkIndex
+
+  end
+
+  end
+
+  alt testBit exit_code TEST_FAILED
+    Runner ->> User: minimal-couterexample
+  else
+    Note over Runner,NUT: Test passed
+  end
+```
+
 The `shrinkView` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
 
 
-### Supported Operations and Flags
+#### Supported Operations and Flags
 
 The **test generator** CLI tool supports, at least, the following operations:
 
 - `list-classes` to list all available test classes.
 - `generate` to produce a test file for a test class.
-   This operation has the following optional flags: 
+   This operation has the following optional flags:
    - `--seed` to specify a seed for the generator.
 - `meta` to access test class metadata, eg the number of `desired-passes`
   we expect to run a test for.
 
-On the other hand, the **test runner** CLI tool supports the following optional flags:
+The **test runner** CLI tool supports the following optional flags:
 
 - `--shrink-index` to specify the shrunk point schedule to run, according to the
   given index. The index values are output by the `runner` itself.
@@ -142,7 +195,7 @@ workflow. For example, users are free to run the entire test suite by looping
 over `testgen list-classes`.
 
 
-### Exit Codes
+#### Exit Codes
 
 The `Exit` bit mask enum is used in the following section:
 
