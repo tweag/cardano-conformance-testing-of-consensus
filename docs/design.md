@@ -132,12 +132,12 @@ sequenceDiagram
   participant NUT as Node Under Test
 
   Note over User,PSG: Choose test property
-  User ->> PSG: testgen generate TESTCLASS
+  User ->> PSG: testgen generate $TESTCLASS
   PSG ->> User: file.test
 
-  loop for shrinkIndex
+  loop for $SHRINK_INDEX
 
-    User ->> Runner: runner file.test shrinkIndex
+    User ->> Runner: runner file.test $SHRINK_INDEX
     Runner ->> User: file.topology
     Note right of Runner: Runner spins-up<br/>simulated peers
     User ->> NUT: node --topology-file=file.topology
@@ -152,20 +152,20 @@ sequenceDiagram
     Note right of Runner: Runner evaluates<br/>test property
 
   alt testBit exit_code KEEP_SHRINKING
-    Runner ->> User: shrinkIndex
+    Runner ->> User: $SHRINK_INDEX
 
   end
 
   end
 
   alt testBit exit_code TEST_FAILED
-    Runner ->> User: minimal-couterexample
+    Runner ->> User: minimal-couterexample.test
   else
     Note over Runner,NUT: Test passed
   end
 ```
 
-The `shrinkView` tool accepts a test file and a shrink index, and outputs the
+The `shrinkview` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
@@ -266,7 +266,7 @@ data ConsensusTest = ConsensusTest
   { generator :: Gen PointSchedule
   , shrinker :: PointSchedule -> [PointSchedule]
   , property :: PointSchedule -> IO Bool
-  , desiredSuccesses :: Int
+  , desiredPasses :: Int
   }
 
 allTheTests :: TestSuite ConsensusTest
