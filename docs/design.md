@@ -24,7 +24,7 @@ nor that they have access to a QuickCheck-like library.
 
 The tests we'd like to expose to alternative implementations are in the "Node
 vs Environment" style. In effect, while we are ultimately interested in the
-behaviour of multiple nodes agreeing on the "right" chain, we can more easily
+behavior of multiple nodes agreeing on the "right" chain, we can more easily
 test by taking advantage of two insights:
 
 1. The logic of identifying the honest chain locally is tricky, but it is very
@@ -118,21 +118,24 @@ useful for looking at non-minimal test inputs, eg, when the user doesn't want
 to iterate the shrinking all the way down to a minimal example.
 
 
-### Supported operations and flags
+### Supported Operations and Flags
 
 The **test generator** CLI tool supports, at least, the following operations:
 
 - `list-classes` to list all available test classes.
 - `generate` to produce a test file for a test class.
    This operation has the following optional flags: 
-   - `--seed=NUM` to specify a seed for the generator.
-   - `--minimal-counterexample=FILE` that dumps the resulting point schedule
-   to a `FILE` if no further shrinking is possible.
-- `meta` to access test class metadata.
+   - `--seed` to specify a seed for the generator.
+- `meta` to access test class metadata, eg the number of `desired-passes`
+  we expect to run a test for.
 
 On the other hand, the **test runner** CLI tool supports the following optional flags:
 
-- `--topology-file=OUTPUT/PATH.top` specifies the output path for the topology file.
+- `--shrink-index` to specify the shrunk point schedule to run, according to the
+  given index. The index values are output by the `runner` itself.
+- `--topology-file` specifies the output path for the topology file.
+- `--minimal-test-output` specifies the file path to write the current point
+  schedule if no further shrinking is possible.
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
 workflow. For example, users are free to run the entire test suite by looping
@@ -237,7 +240,7 @@ provide an extremely bare-bones minimum viable product (MVP) which illustrates
 that the major engineering hurdles can be solved and that our approach is
 feasible.
 
-To that end, we will deliver a barebones version of `runner` which can perform
+To that end, we will deliver a version of `runner` which can perform
 black-box testing of (a fork of) `cardano-node` against a given point schedule.
 
 The test executable will communicate with `cardano-node` over network sockets,
@@ -391,7 +394,7 @@ node timeouts (as Network delays would be irrelevant in this setting).
 
 #### Risks
 
-As far as I (Sandy) know, our team has minimal knowledge of Rust. Depending of
+With the current lineup, our team has minimal knowledge of Rust. Depending of
 the difficulty of making the necessary changes, we might need to pull in
 external help.
 
@@ -423,7 +426,7 @@ In addition, we will deliver the `testgen` utility, including:
 
 1. support for the `generate` command, including selection of testclass and
    optional seed
-2. support for the `list-all-classes`  command
+2. support for the `list-classes`  command
 3. support for the `meta desired-passes` command
 
 
