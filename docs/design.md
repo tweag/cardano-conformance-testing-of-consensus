@@ -2,10 +2,17 @@
 
 ## Motivation
 
-`cardano-node` ships with a large suite of tests verifying its consensus
-protocol. Given the subtlety in the implementation of the consensus protocol,
-it's desirable that we can leverage this existing test suite to help verify the
-correctness of alternative node implementations.
+`cardano-node` ships with a large suite of *property tests* verifying its
+consensus protocol.[^prop] Given the subtlety in the implementation of the
+consensus protocol, it's desirable that we can leverage this existing test
+suite to help verify the correctness of alternative node implementations.
+
+[^prop]: Property based testing (PBT) is a testing methodology where a big
+  number of random unit tests are automatically generated against a property
+  definition; that is, characteristics or invariants that the software under
+  test must satisfy for all valid inputs. PBT frameworks often include a
+  shrinking capability that attempts, in case of failure, to find the smallest
+  or simplest counterexample to facilitate the diagnosis of bugs.
 
 Correctness here is an *extremely important* property---much more so than in
 most software projects. Nodes failing to agree on the correct chain risks an
@@ -17,7 +24,8 @@ infrastructure changes, to expose these existing tests in a form that
 alternative nodes can use.
 
 We do not make any assumptions that alternative nodes be written in Haskell,
-nor that they have access to a QuickCheck-like library.
+nor that they have access to a
+[QuickCheck](https://en.wikipedia.org/wiki/QuickCheck)-like library.
 
 
 ## Context
