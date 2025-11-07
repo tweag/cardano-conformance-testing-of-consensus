@@ -2,10 +2,24 @@
 
 ## Motivation
 
-`cardano-node` ships with a large suite of *property tests* verifying its
-consensus protocol.[^prop] Given the subtlety in the implementation of the
-consensus protocol, it's desirable that we can leverage this existing test
-suite to help verify the correctness of alternative node implementations.
+The eponymous feature of a consensus protocol is, of course, that it is expected
+to maintain consensus. In our terms, all nodes (subject to the various
+assumptions on the state of the network and honest majority) will agree on a
+prefix of the current chain. Up to now, this has been achieved in the
+following ways:
+
+- Every node in the network is running (close to) the same code.
+-​ Consensus testing (living inside [`io-sim`](https://hackage.haskell.org/package/io-sim),
+  a Haskell IO simulator) validates that all (honest) nodes will eventually
+  reach consensus.
+
+In a world of multiple node implementations, this strategy no longer holds.
+Nodes may be running very different code, and most of it will not be testable
+under `io-sim`, used by `cardano-node` in a large suite of
+*property tests*.[^prop] Given the subtlety in the implementation of the
+consensus protocol, it's desirable that we can leverage this test suite to
+help verify that alternate nodes have implemented the consensus protocol
+stack correctly.
 
 [^prop]: Property based testing (PBT) is a testing methodology where a big
   number of random unit tests are automatically generated against a property
