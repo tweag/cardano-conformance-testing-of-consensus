@@ -92,7 +92,7 @@ class. Its output will be a test file containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
 The `runner` tool accepts a test file (as output by `testgen`) and
-a *shrink index* (see @sec:shrinking), and spins up simulated peers
+a *shrink index* (see [shrinking](#shrinking)), and spins up simulated peers
 corresponding to the embedded point schedule. The `runner` tool will then
 output a [topology
 file](https://developers.cardano.org/docs/operate-a-stake-pool/node-operations/topology/)
@@ -115,7 +115,8 @@ and node throughput.
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
 ensure the desired property holds. Depending on the result of the test and the
-state of the shrink index, we will perform different actions (see @sec:exit-codes.)
+state of the shrink index, we will perform different actions
+(see [exit-codes](#exit-codes).)
 
 It is important to note that a single invocation of the composition `runner
 . testgen` correponds to a single unit test. Users are encouraged to run this
@@ -137,7 +138,7 @@ A basic testing workflow would be like follows:
 6. Once all of the peers have been connected to, the point schedule begins
    running.
 7. After the point schedule has finished, we observe the final state of the node.
-8. The server will exit with a return code (see @sec:exit-codes) corresponding to
+8. The server will exit with a return code (see [exit-codes](#exit-codes)) corresponding to
    whether or not the node ended in the correct state, producing either a
    shrink index for subsequent test run or a test file with a minimal counter
    example.
@@ -280,8 +281,9 @@ As things stand, each test property is implicit within calls to
 `forAllGenesisTest`. In order to expose the existing test suite to our
 `testgen` and `runner` tools, we propose reifying each test property as
 an instance of a `ConsensusTest` data type, which are arranged into a
-`TestSuit` data structure.
+`TestSuite` data structure.
 
+<a name="testsuite-anchor"></a>
 ```haskell
 data TestClass
 
@@ -438,7 +440,7 @@ external help.
 
 Now that we have a proven design and working system, we can commit to making
 the approach official. We will refactor the existing test suite into a reified
-`TestSuite` (see @sec:testsuite), from which we can extract both the existing
+[`TestSuite`](#testsuite-anchor), from which we can extract both the existing
 `tasty` test suite, as well as the data for `testgen`.
 
 This step will require patching `ouroboros-consensus`, which is why we want to
@@ -453,7 +455,7 @@ In this milestone, we will deliver:
 2. corresponding changes to `runner` and `shrinkview` for parsing and
    serializing these files
 3. we will port all of the existing ouroboros-consensus tests into a reified
-   `TestSuite` representation (see @sec:testsuite)
+   [`TestSuite`](#testsuite-anchor) representation.
 
 In addition, we will deliver the `testgen` utility, including:
 
