@@ -74,7 +74,12 @@ Whilst the point schedule currently is implemented inside the Haskell node, its
 declarative nature makes it possible to export this testing method and make it
 usable across diverse node implementations. To ensure this, we will look only
 at the messages sent over the network, to ensure we are performing black-box
-testing.
+testing. It will also be possible for alternate nodes to use peer simulation
+for white-box testing in cases that depend on internal tracing (eg. file
+handles, memory usage, etc.). This suite of tools aims only at properties
+related to test conformance against the Ouroboros Praos consensus protocol.
+For example, that a node should always choose the longest of two competing
+chains or that a rollback is triggered (or not) under specific conditions.
 
 
 ## Proposed Specification
