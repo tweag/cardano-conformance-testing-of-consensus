@@ -334,8 +334,10 @@ As a possible exception, we will assume that we can run `cardano-node` over
 
 We'll start with a simple testing approach, where we compare the resulting
 state of the NUT with the end state of the point schedule and make sure
-the simulated peers behave as expected. **We will not support arbitrary
-properties at this point.**
+the simulated peers behave as expected. While we **will not support arbitrary
+properties at this point**, testing will be run for both a positive and
+a negative property so that both code paths (success and failure) are
+consistently tested during development.
 
 
 #### Deliverables
