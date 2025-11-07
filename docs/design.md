@@ -200,7 +200,10 @@ The **test generator** CLI tool supports, at least, the following operations:
 - `list-classes` to list all available test classes.
 - `generate` to produce a test file for a test class.
    This operation has the following optional flags:
-   - `--seed` to specify a seed for the generator.
+   - `--seed` to specify a seed for the generator (eg to enable parallel
+     workflows and reproducibility.)
+   - `--size` to specify the target size of the point schedule (eg a desirable
+     functionality for shrinking.)
 - `meta` to access test class metadata, eg the number of `desired-passes`
   we expect to run a test for.
 
@@ -459,8 +462,8 @@ In this milestone, we will deliver:
 
 In addition, we will deliver the `testgen` utility, including:
 
-1. support for the `generate` command, including selection of testclass and
-   optional seed
+1. support for the `generate` command, including selection of test class,
+   optional seed and optional size parameters.
 2. support for the `list-classes`  command
 3. support for the `meta desired-passes` command
 
