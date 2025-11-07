@@ -119,6 +119,21 @@ the outputted shrink index. The pair `(testfile, shrinkindex)` is the entirety
 of the shrink search state. By explicitly threading this state through flags
 and stdout, the system is stateless.
 
+A basic testing workflow would be like follows:
+
+1. The user obtains a point schedule from `testgen`.
+2. The user invokes our `runner` binary, passing in the point schedule as an
+   argument.
+3. `runner` starts up the simulated peers, and returns a topology file.
+4. The user starts its node with the given topology file.
+5. The node connects to our simulated peers.
+6. Once all of the peers have been connected to, the point schedule begins
+   running.
+7. After the point schedule has finished, we observe the final state of the node.
+8. The server will exit with a return code (see @sec:exit-codes) corresponding to
+   whether or not the node ended in the correct state, producing either a
+   shrink index for subsequent test run or a test file with a minimal counter
+   example.
 
 ```mermaid
 ---
@@ -237,6 +252,15 @@ manually "pump" the shrinker.
 
 ## Alternatives
 
+- Make `runner` automatically generate the next shrinking candidate (point
+schedule) and ask the client to run it, instead of just passing a shrink index
+for her to use in a subsequent test run or produce the point schedule herself
+if needed using `shrinkview`, as is our proposed design.
+This is a viable alternative, as we want all our components to be stateless as
+a design choice for composability. In fact, our original design does not
+preclude the possibility of implementing this.
+
+
 ## Unresolved Questions
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
@@ -325,26 +349,6 @@ require only enough in the way of point schedules to verify that our approach
 does what it ought.
 
 
-#### Plan
-
-<!-- TODO(sandy): do we still need this section, or can we wrap it into the global overview? -->
-
-
-1. The user obtains a point schedule from somewhere (generating these is part
-   of @sec:generators)
-2. The user invokes our test binary, passing in the point schedule as an
-   argument.
-3. The test binary starts up the simulated peers, and returns a topology file.
-4. The user starts `cardano-node` with the given topology file.
-5. `cardano-node` connects to our simulated peers
-6. Once all of the peers have been connected to, the point schedule begins
-   running
-7. After the point schedule has finished, we observe the final state of
-   `cardano-node`.
-8. The server will exit with a return code corresponding to whether or not
-   `cardano-node` ended in the correct state.
-
-
 ### Milestone 2 - Shrinking
 
 #### Goals
@@ -378,28 +382,6 @@ We will also implement the `shrinkview` binary at this time, which accepts only
 a test file and shrink index, and outputs the shrunk test on stdout.
 
 
-#### Plan
-
-<!-- TODO(sandy): do we still need this? -->
-
-
-- Change milestone [1] binary to support a shrink index as input (pointing to were
-  we currently are on the shrink tree).
-    - If test succeeds and there is no shrink index, we end with success.
-    - If test succeeds with a shrink index, the binary returns a successor to this
-      shrink index.
-    - If test fails, we extend the shrink index.
-    - If test fails, and the shrink index can't be extended, we output the
-      minimally shrunk point schedule.
-- Build a utility to materialize the view of the shrinking so that, given some
-  point schedule and an index, produces the shrunk point schedule.
-
-Alternative: Automatically generate the next shrinking candidate and ask the
-client to run it.
-We want all our components to be stateless as a design choice for composability.
-This work does not preclude the possibility of implementing this.
-
-
 ### Milestone 3 - Amaru and other Implementations
 
 #### Goal
@@ -423,20 +405,11 @@ timeouts configurable.)
 Our other deliverable here will be a high-level overview and analysis of the
 necessary changes required to test against Amaru. Presumably these will end up
 being the set of configurable options necessary for *any* implementation to test
-against our harness.
+against our harness. At the forefront, we have the parsing of topology files and
+disabling block crypto as requirements.
 
 We explicitly would like to know the expected *implementation burden* required
 on alternative nodes to actually use any of this testing machinery.
-
-
-#### Plan
-
-1. Make the test work on Amaru.
-    1. Have a means of disabling crypto.
-    2. Ensure that it can parse our generated topology files.
-2. Document the necessary requirements from a node to run this tests.
-    * At the forefront, we have the previous two requirements (parse topology
-      and disable crypto).
 
 
 #### Questions to Answer
@@ -510,4 +483,3 @@ for common workflows.
 #### Questions
 
 What other things can we do to improve the usability of these tools?
-
