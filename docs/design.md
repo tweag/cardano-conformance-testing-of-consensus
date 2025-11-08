@@ -2,10 +2,31 @@
 
 ## Motivation
 
-`cardano-node` ships with a large suite of tests verifying its consensus
-protocol. Given the subtlety in the implementation of the consensus protocol,
-it's desirable that we can leverage this existing test suite to help verify the
-correctness of alternative node implementations.
+The eponymous feature of a consensus protocol is, of course, that it is expected
+to maintain consensus. In our terms, all nodes (subject to the various
+assumptions on the state of the network and honest majority) will agree on a
+prefix of the current chain. Up to now, this has been achieved in the
+following ways:
+
+- Every node in the network is running (close to) the same code.
+-​ Consensus testing (living inside [`io-sim`](https://hackage.haskell.org/package/io-sim),
+  a Haskell IO simulator) validates that all (honest) nodes will eventually
+  reach consensus.
+
+In a world of multiple node implementations, this strategy no longer holds.
+Nodes may be running very different code, and most of it will not be testable
+under `io-sim`, used by `cardano-node` in a large suite of
+*property tests*.[^prop] Given the subtlety in the implementation of the
+consensus protocol, it's desirable that we can leverage this test suite to
+help verify that alternate nodes have implemented the consensus protocol
+stack correctly.
+
+[^prop]: Property based testing (PBT) is a testing methodology where a big
+  number of random unit tests are automatically generated against a property
+  definition; that is, characteristics or invariants that the software under
+  test must satisfy for all valid inputs. PBT frameworks often include a
+  shrinking capability that attempts, in case of failure, to find the smallest
+  or simplest counterexample to facilitate the diagnosis of bugs.
 
 Correctness here is an *extremely important* property---much more so than in
 most software projects. Nodes failing to agree on the correct chain risks an
@@ -17,7 +38,8 @@ infrastructure changes, to expose these existing tests in a form that
 alternative nodes can use.
 
 We do not make any assumptions that alternative nodes be written in Haskell,
-nor that they have access to a QuickCheck-like library.
+nor that they have access to a
+[QuickCheck](https://en.wikipedia.org/wiki/QuickCheck)-like library.
 
 
 ## Context
@@ -52,7 +74,12 @@ Whilst the point schedule currently is implemented inside the Haskell node, its
 declarative nature makes it possible to export this testing method and make it
 usable across diverse node implementations. To ensure this, we will look only
 at the messages sent over the network, to ensure we are performing black-box
-testing.
+testing. It will also be possible for alternate nodes to use peer simulation
+for white-box testing in cases that depend on internal tracing (eg. file
+handles, memory usage, etc.). This suite of tools aims only at properties
+related to test conformance against the Ouroboros Praos consensus protocol.
+For example, that a node should always choose the longest of two competing
+chains or that a rollback is triggered (or not) under specific conditions.
 
 
 ## Proposed Specification
