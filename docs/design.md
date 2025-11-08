@@ -227,7 +227,10 @@ The **test generator** CLI tool supports, at least, the following operations:
 - `list-classes` to list all available test classes.
 - `generate` to produce a test file for a test class.
    This operation has the following optional flags:
-   - `--seed` to specify a seed for the generator.
+   - `--seed` to specify a seed for the generator (eg to enable parallel
+     workflows and reproducibility.)
+   - `--size` to specify the target size of the point schedule (eg a desirable
+     functionality for shrinking.)
 - `meta` to access test class metadata, eg the number of `desired-passes`
   we expect to run a test for.
 
@@ -361,8 +364,10 @@ As a possible exception, we will assume that we can run `cardano-node` over
 
 We'll start with a simple testing approach, where we compare the resulting
 state of the NUT with the end state of the point schedule and make sure
-the simulated peers behave as expected. **We will not support arbitrary
-properties at this point.**
+the simulated peers behave as expected. While we **will not support arbitrary
+properties at this point**, testing will be run for both a positive and
+a negative property so that both code paths (success and failure) are
+consistently tested during development.
 
 
 #### Deliverables
@@ -484,8 +489,8 @@ In this milestone, we will deliver:
 
 In addition, we will deliver the `testgen` utility, including:
 
-1. support for the `generate` command, including selection of testclass and
-   optional seed
+1. support for the `generate` command, including selection of test class,
+   optional seed and optional size parameters.
 2. support for the `list-classes`  command
 3. support for the `meta desired-passes` command
 
