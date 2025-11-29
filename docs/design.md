@@ -9,7 +9,7 @@ prefix of the current chain. Up to now, this has been achieved in the
 following ways:
 
 - Every node in the network is running (close to) the same code.
--​ Consensus testing (living inside [`io-sim`](https://hackage.haskell.org/package/io-sim),
+- Consensus testing (living inside [`io-sim`](https://hackage.haskell.org/package/io-sim),
   a Haskell IO simulator) validates that all (honest) nodes will eventually
   reach consensus.
 
@@ -30,8 +30,8 @@ stack correctly.
 
 Correctness here is an *extremely important* property---much more so than in
 most software projects. Nodes failing to agree on the correct chain risks an
-accidental hard fork. Should one persist long enough it might potentially be
-unrecoverable.
+accidental hard fork. Should one persist long enough the protocol  might be
+unable to recover without external/etc intervention.
 
 This document gives a design for a suite of tools, and the necessary
 infrastructure changes, to expose these existing tests in a form that
@@ -70,11 +70,11 @@ colluding) peers. After evaluation of the point schedule, the Node Under Test
   that the peer should send to the NUT. See the relevant documentation
   [here](https://github.com/IntersectMBO/ouroboros-consensus/blob/374ef153e20d83ad3d42d850ce560b67034ac578/ouroboros-consensus-diffusion/test/consensus-test/Test/Consensus/PointSchedule/SinglePeer.hs).
 
-Whilst the point schedule currently is implemented inside the Haskell node, its
+Whilst the point schedule currently is implemented inside the Haskell node's test suite, its
 declarative nature makes it possible to export this testing method and make it
 usable across diverse node implementations. To ensure this, we will look only
 at the messages sent over the network, to ensure we are performing black-box
-testing. It will also be possible for alternate nodes to use peer simulation
+testing. It will also be possible for alternative nodes to use peer simulation
 for white-box testing in cases that depend on internal tracing (eg. file
 handles, memory usage, etc.). This suite of tools aims only at properties
 related to test conformance against the Ouroboros Praos consensus protocol.
@@ -114,7 +114,7 @@ We will ship three separate CLI tools:
 The purpose of `testgen` is to generate test cases; it accepts arguments to
 select a specific class of tests, and potentially some test-specific tuning knobs
 (to eg, change the "difficulty" of the test.) Each class of tests will have an
-associated `Gen`erator, which `testgen` will invoke to instantiate the test
+associated Generator, which `testgen` will invoke to instantiate the test
 class. Its output will be a test file containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
@@ -165,10 +165,9 @@ A basic testing workflow would be like follows:
 6. Once all of the peers have been connected to, the point schedule begins
    running.
 7. After the point schedule has finished, we observe the final state of the node.
-8. The server will exit with a return code (see [exit-codes](#exit-codes)) corresponding to
-   whether or not the node ended in the correct state, producing either a
-   shrink index for subsequent test run or a test file with a minimal counter
-   example.
+8. The `runner` will exit with a return code (see [exit-codes](#exit-codes)) corresponding to
+   whether or not the node ended in the correct state, producing a test file with the corresponding counter
+   example and a shrink index to enable the user to continue searching for a smaller counter example.
 
 ```mermaid
 ---
@@ -240,12 +239,12 @@ The **test runner** CLI tool supports the following optional flags:
 - `--shrink-index` to specify the shrunk point schedule to run, according to the
   given index. The index values are output by the `runner` itself.
 - `--topology-file` specifies the output path for the topology file.
-- `--minimal-test-output` specifies the file path to write the current point
-  schedule if no further shrinking is possible.
+- `--test-output` specifies the file path to write the latest point
+  schedule to.
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
 workflow. For example, users are free to run the entire test suite by looping
-over `testgen list-classes`.
+over the output of `testgen list-classes`.
 
 
 #### Exit Codes
@@ -276,16 +275,16 @@ shrinkIndex` on stdout. While this is technically a test pass, it is a pass for
 a shrunk input. Thus this is merely a "local" success, rather than a "global"
 success.
 
-If the property failed, and we can `extend` the shrink index, we will exit with
-code `TEST_FAILED | CONTINUE_SHRINKING` and output the result of `extend shrinkInput`
-on stdout. This corresponds to a non-minimal test failure.
+If the property failed, and we can extend the shrink index, we will exit with
+code `TEST_FAILED | CONTINUE_SHRINKING`, output the next shrink index
+on stdout, and write the test case to `--test-output`. This corresponds to a non-minimal test failure.
 
-If the property failed and we cannot `extend` the shrink index, we will exit
-with code `TEST_FAILED`, and produce the minimal test case on stdout.
+If the property failed and we cannot extend the shrink index, we will exit
+with code `TEST_FAILED` and write the minimal test case to `--test-output`.
 
-When the `CONTINUE_SHRINKING` bit is part of the exit code, the user is
-encouraged to restart the `runner` with the new shrink index, in order to
-manually "pump" the shrinker.
+When the `CONTINUE_SHRINKING` bit is set in the exit code, the user can
+rerun the `runner` with the new shrink index, in order to continuing searching
+for a smaller counter examples.
 
 
 ## Alternatives
@@ -302,8 +301,8 @@ preclude the possibility of implementing this.
 ## Unresolved Questions
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
-  conceptually clearer to have a peer whose sole job is to collect data. As
-  a counterexample, what happens when the peer schedule is empty?
+  conceptually clearer to have a peer whose sole job is to collect data. On the
+  other hand, what happens when the peer schedule is empty?
 
 ## Implementation Plan
 
@@ -337,9 +336,9 @@ allTheTests :: TestSuite ConsensusTest
 runConsensusTest :: ConsensusTest -> Property
 ```
 
-The change to `cardano-node` would be minimal, and it essentially boils
+The change to `cardano-node`'s test suite would be minimal, and it essentially boils
 down to implementing `runConsensusTest` using `forAllGenesisTest`, which should
-have no local effect on the implementation. Along this lines,
+have no local effect on the implementation. Along these lines,
 `toTasty :: TestSuite ConsensusTest -> TestTree` would essentially traverse the
 `TestSuite` using `runConsensusTest`.
 
@@ -377,11 +376,11 @@ consistently tested during development.
 In this milestone, we will deliver a minimal implementation of `runner`,
 supporting:
 
-- (mindless, derived) parsing of point schedule test files
+- (bare-bones) parsing of point schedule test files
 - generating topology files
 - running point schedules
 - observing the state of the NUT
-- returning an appropriate error code of among `SUCCESS`, `INTERNAL_ERROR`,
+- returning an appropriate error code among `SUCCESS`, `INTERNAL_ERROR`,
   `BAD_USAGE` or `TEST_FAILED`
 
 We explicitly *will not* implement anything around generators or shrinking in
@@ -397,7 +396,7 @@ does what it ought.
 Provide a useful failure feedback, so that users can leverage the test
 to find specific bugs on their consensus protocol implementation.
 
-Deliver a shrinking strategy to run our executable from [1] on subsequently
+Deliver a shrinking strategy to run our executable from Milestone 1 on subsequently
 smaller tests.
 
 
@@ -407,8 +406,8 @@ In this milestone, we will implement the shrinking functionality. In particular,
 we will make the following changes to `runner`:
 
 - Parse an optional `--shrink-index` flag
-- Parse an optional `--minimal-test-output` flag
-- Upon `TEST_FAILED`, try `extend`ing the shrink index. If extension is
+- Parse an optional `--test-output` flag
+- Upon `TEST_FAILED`, try extending the shrink index. If extension is
   possible, emit the new shrink index on stdout and return
   `TEST_FAILED | CONTINUE_SHRINKING`. If extension is not possible and
   `--minimal-test-output` was set, write the minimal test case out to this
@@ -417,7 +416,7 @@ we will make the following changes to `runner`:
   shrinkIndex` on stdout, and return `SUCCESS | CONTINUE_SHRINKING`.
 
 In addition, we will deliver property tests ensuring that `ShrinkIndex`, `succ`,
-and `extend` correctly explore a shrink tree.
+and the shrink-index extender correctly explore a shrink tree.
 
 We will also implement the `shrinkview` binary at this time, which accepts only
 a test file and shrink index, and outputs the shrunk test on stdout.
@@ -430,11 +429,6 @@ a test file and shrink index, and outputs the shrunk test on stdout.
 At this point, the MVP is working as expected on the `cardano-node`; our goal
 now is to ensure this works for other implementations, and that our design is
 decoupled from any internal details of `cardano-node`.
-
-As a stretch goal: it would be very rewarding to actually find a test failure in
-another implementation. Care must be taken to ensure that this is, however, a
-failure in the node, and not some artifact of our testing procedure.
-
 
 #### Deliverables
 
@@ -456,12 +450,12 @@ on alternative nodes to actually use any of this testing machinery.
 #### Questions to Answer
 
 Do we need to simulate time? This might be related to configuration access to
-node timeouts (as Network delays would be irrelevant in this setting).
+node timeouts (as network latency would be irrelevant in this setting).
 
 
 #### Risks
 
-With the current lineup, our team has minimal knowledge of Rust. Depending of
+With current staffing, our team has minimal knowledge of Rust. Depending of
 the difficulty of making the necessary changes, we might need to pull in
 external help.
 
@@ -475,7 +469,7 @@ the approach official. We will refactor the existing test suite into a reified
 [`TestSuite`](#testsuite-anchor), from which we can extract both the existing
 `tasty` test suite, as well as the data for `testgen`.
 
-This step will require patching `ouroboros-consensus`, which is why we want to
+This step will require patching `ouroboros-consensus`'s test suite, which is why we want to
 have proven the technology before making upstream changes.
 
 
@@ -486,7 +480,7 @@ In this milestone, we will deliver:
 1. a design and specification of the serialization format for our test files
 2. corresponding changes to `runner` and `shrinkview` for parsing and
    serializing these files
-3. we will port all of the existing ouroboros-consensus tests into a reified
+3. we will port all of the existing `ouroboros-consensus` tests into a reified
    [`TestSuite`](#testsuite-anchor) representation.
 
 In addition, we will deliver the `testgen` utility, including:
