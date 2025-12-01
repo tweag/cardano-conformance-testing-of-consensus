@@ -115,13 +115,14 @@ The purpose of `testgen` is to generate test cases; it accepts arguments to
 select a specific class of tests, and potentially some test-specific tuning knobs
 (to eg, change the "difficulty" of the test.) Each class of tests will have an
 associated Generator, which `testgen` will invoke to instantiate the test
-class. Its output will be a test file containing a point schedule and a
+class. Its output will be a *test file* containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
-The `runner` tool accepts a test file (as output by `testgen`) and
-a *shrink index* (see [shrinking](#shrinking)), and spins up simulated peers
-corresponding to the embedded point schedule. The `runner` tool will then
-output a [topology
+The `runner` tool takes a test file (as output by `testgen`) as mandatory
+argument, and an optional *shrink index* (see [shrinking](#shrinking)), to spin
+up simulated peers corresponding to the embedded point schedule. The `runner`
+tool will then output a
+[topology
 file](https://developers.cardano.org/docs/operate-a-stake-pool/node-operations/topology/)
 whose `localRoots` will point to the simulated peers. We will create an
 additional `localRoot` peer whose job is to record all messages diffused from
@@ -146,18 +147,19 @@ state of the shrink index, we will perform different actions
 (see [exit-codes](#exit-codes).)
 
 It is important to note that a single invocation of the composition `runner
-. testgen` correponds to a single unit test. Users are encouraged to run this
+. testgen` corresponds to *a single unit test*. Users are encouraged to run this
 composition in a loop, to gain the usual assurances given by property tests.
 
-If a given test fails, and shrinking is desired, users can rerun `runner` with
-the outputted shrink index. The pair `(testfile, shrinkindex)` is the entirety
-of the shrink search state. By explicitly threading this state through flags
-and stdout, the system is stateless.
+If a given test fails, and (further) shrinking is desired, users can rerun
+`runner` with the outputted shrink index and the initial test file. The pair
+`(testfile, shrinkindex)` is the entirety of the shrink search state.
+By explicitly threading this state through flags and stdout, the system is
+stateless.
 
 A basic testing workflow would be like follows:
 
-1. The user obtains a point schedule from `testgen`.
-2. The user invokes our `runner` binary, passing in the point schedule as an
+1. The user obtains a test file with an embedded point schedule from `testgen`.
+2. The user invokes the `runner` binary, passing in the test file as an
    argument.
 3. `runner` starts up the simulated peers, and returns a topology file.
 4. The user starts its node with the given topology file.
@@ -165,10 +167,10 @@ A basic testing workflow would be like follows:
 6. Once all of the peers have been connected to, the point schedule begins
    running.
 7. After the point schedule has finished, we observe the final state of the node.
-8. The `runner` will exit with a return code (see [exit-codes](#exit-codes)) corresponding to
-   whether or not the node ended in the correct state, producing either a
-   shrink index for subsequent test run or a test file with a minimal counter
-   example.
+8. The `runner` will exit with a return code (see [exit-codes](#exit-codes))
+   corresponding to whether or not the node ended in the correct state,
+   producing either a shrink index for subsequent test run or a test file with
+   a minimal counter example.
 
 ```mermaid
 ---
@@ -218,7 +220,8 @@ sequenceDiagram
 The `shrinkView` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
-to iterate the shrinking all the way down to a minimal example.
+to iterate the shrinking all the way down to a minimal example or desires to
+keep file records of shrunk counterexamples.
 
 
 #### Supported Operations and Flags
@@ -235,13 +238,19 @@ The **test generator** CLI tool supports, at least, the following operations:
 - `meta` to access test class metadata, eg the number of `desired-passes`
   we expect to run a test for.
 
-The **test runner** CLI tool supports the following optional flags:
+The **test runner** CLI tool takes a single test file as mandatory argument and
+supports the following optional flags:
 
 - `--shrink-index` to specify the shrunk point schedule to run, according to the
   given index. The index values are output by the `runner` itself.
 - `--topology-file` specifies the output path for the topology file.
-- `--minimal-test-output` specifies the file path to write the current point
-  schedule if no further shrinking is possible.
+- `--minimal-test-output` specifies a file path to write the last counterexample
+  test file to if no further shrinking is possible. This is the only case
+  `runner` outputs a test file. Non-minimal counterexample test files can be
+  produced by using `shrinkview`.
+
+The **shrink viewer** tool has two mandatory arguments (a test file and a shrink
+index), a single mode of operation, and no flags.
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
 workflow. For example, users are free to run the entire test suite by looping
