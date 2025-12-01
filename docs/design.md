@@ -124,9 +124,14 @@ up simulated peers corresponding to the embedded point schedule. The `runner`
 tool will then output a
 [topology
 file](https://developers.cardano.org/docs/operate-a-stake-pool/node-operations/topology/)
-whose `localRoots` will point to the simulated peers. We will create an
-additional `localRoot` peer whose job is to record all messages diffused from
-the NUT.
+whose `localRoots` point to the simulated peers and an additional
+downstream peer whose sole job is to query the NUT state.[^query]
+
+[^query]: Most properties in the referenced test suit depend exclusively on the
+  final state of the NUT, so such a query could be made once after the point
+  schedule completes. However, its plausible that querying the NUT state
+  throughout the test run could allow implementing other properties if such
+  repeated queries prove to be robust enough.
 
 Alternative nodes which wish to test against `runner` need to parse the generated
 topology file and connect to the simulated peers. Once they have all been
