@@ -467,6 +467,8 @@ on alternative nodes to actually use any of this testing machinery.
 Do we need to simulate time? This might be related to configuration access to
 node timeouts (as network latency would be irrelevant in this setting).
 
+In this milestone, we will consult with Amaru architects on what concerns they
+have on satisfying the proposed interface.
 
 #### Risks
 
