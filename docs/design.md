@@ -175,7 +175,7 @@ A basic testing workflow would be like follows:
 8. The `runner` will exit with a return code (see [exit-codes](#exit-codes))
    corresponding to whether or not the node ended in the correct state,
    producing either a shrink index for subsequent test run or a test file with
-   a minimal counter example.
+   a minimal counterexample.
 
 ```mermaid
 ---
@@ -225,8 +225,8 @@ sequenceDiagram
 The `shrinkView` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
-to iterate the shrinking all the way down to a minimal example or desires to
-keep file records of shrunk counterexamples.
+to iterate the shrinking all the way down to a minimal counterexample or desires
+to keep file records of intermediate shrunk counterexamples.
 
 
 #### Supported Operations and Flags
