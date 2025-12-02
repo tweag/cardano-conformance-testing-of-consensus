@@ -7,18 +7,6 @@ A collection of questions and notes from elsewhere.
 The basic idea is leveraging the existing diffusion layer from
 `ouroboros-network` and a lightweight example like `immdb-server`.
 
-On this question, Alexander Esgen provided a high-level overview of the
-approach, including using the diffusion layer to expose servers over a network
-connection to serve a peer schedule (instead of reading from an ImmutableDB in
-the case of the `immdb-server`).
-He noted the non-trivial aspect of standardizing a new kind of test block, and
-the challenges of using actual Cardano blocks due to the VRF-governed leader
-schedule.
-@amesgen also mentioned the idea of a custom interface to allow the node under test to signal when it is ready for the next tick, but noted this is not required for an initial prototype [5]
-
-@nfrisby @amesgen we're trying to figure out how to inject our simulated peers into an alternate node. is there an obvious part of the protocol that we can use for this purpose? (edited)
-11 replies
-
 ### High-level overview
 
 - In the current Genesis tests, clients and servers are plugged together purely
