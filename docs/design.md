@@ -316,8 +316,9 @@ preclude the possibility of implementing this.
 ## Unresolved Questions
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
-  conceptually clearer to have a peer whose sole job is to collect data. As
-  a counterexample, what happens when the peer schedule is empty?
+  conceptually clearer to have a peer whose sole job is to collect data.
+  For example, in the case of an empty peer schedule it is clear that the
+  downstream peer would still get the correct state.
 
 ## Implementation Plan
 
