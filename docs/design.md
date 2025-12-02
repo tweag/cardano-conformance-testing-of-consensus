@@ -9,7 +9,7 @@ prefix of the current chain. Up to now, this has been achieved in the
 following ways:
 
 - Every node in the network is running (close to) the same code.
--​ Consensus testing (living inside [`io-sim`](https://hackage.haskell.org/package/io-sim),
+- Consensus testing (living inside [`io-sim`](https://hackage.haskell.org/package/io-sim),
   a Haskell IO simulator) validates that all (honest) nodes will eventually
   reach consensus.
 
@@ -30,8 +30,8 @@ stack correctly.
 
 Correctness here is an *extremely important* property---much more so than in
 most software projects. Nodes failing to agree on the correct chain risks an
-accidental hard fork. Should one persist long enough it might potentially be
-unrecoverable.
+accidental hard fork. Should one persist long enough the protocol  might be
+unable to recover without external/etc intervention.
 
 This document gives a design for a suite of tools, and the necessary
 infrastructure changes, to expose these existing tests in a form that
@@ -70,11 +70,11 @@ colluding) peers. After evaluation of the point schedule, the Node Under Test
   that the peer should send to the NUT. See the relevant documentation
   [here](https://github.com/IntersectMBO/ouroboros-consensus/blob/374ef153e20d83ad3d42d850ce560b67034ac578/ouroboros-consensus-diffusion/test/consensus-test/Test/Consensus/PointSchedule/SinglePeer.hs).
 
-Whilst the point schedule currently is implemented inside the Haskell node, its
+Whilst the point schedule currently is implemented inside the Haskell node's test suite, its
 declarative nature makes it possible to export this testing method and make it
 usable across diverse node implementations. To ensure this, we will look only
 at the messages sent over the network, to ensure we are performing black-box
-testing. It will also be possible for alternate nodes to use peer simulation
+testing. It will also be possible for alternative nodes to use peer simulation
 for white-box testing in cases that depend on internal tracing (eg. file
 handles, memory usage, etc.). This suite of tools aims only at properties
 related to test conformance against the Ouroboros Praos consensus protocol.
@@ -114,18 +114,24 @@ We will ship three separate CLI tools:
 The purpose of `testgen` is to generate test cases; it accepts arguments to
 select a specific class of tests, and potentially some test-specific tuning knobs
 (to eg, change the "difficulty" of the test.) Each class of tests will have an
-associated `Gen`erator, which `testgen` will invoke to instantiate the test
-class. Its output will be a test file containing a point schedule and a
+associated Generator, which `testgen` will invoke to instantiate the test
+class. Its output will be a *test file* containing a point schedule and a
 (mechanical) description of the property which needs to pass.
 
-The `runner` tool accepts a test file (as output by `testgen`) and
-a *shrink index* (see [shrinking](#shrinking)), and spins up simulated peers
-corresponding to the embedded point schedule. The `runner` tool will then
-output a [topology
+The `runner` tool takes a test file (as output by `testgen`) as mandatory
+argument, and an optional *shrink index* (see [shrinking](#shrinking)), to spin
+up simulated peers corresponding to the embedded point schedule. The `runner`
+tool will then output a
+[topology
 file](https://developers.cardano.org/docs/operate-a-stake-pool/node-operations/topology/)
-whose `localRoots` will point to the simulated peers. We will create an
-additional `localRoot` peer whose job is to record all messages diffused from
-the NUT.
+whose `localRoots` point to the simulated peers and an additional
+downstream peer whose sole job is to query the NUT state.[^query]
+
+[^query]: Most properties in the referenced test suit depend exclusively on the
+  final state of the NUT, so such a query could be made once after the point
+  schedule completes. However, its plausible that querying the NUT state
+  throughout the test run could allow implementing other properties if such
+  repeated queries prove to be robust enough.
 
 Alternative nodes which wish to test against `runner` need to parse the generated
 topology file and connect to the simulated peers. Once they have all been
@@ -146,18 +152,19 @@ state of the shrink index, we will perform different actions
 (see [exit-codes](#exit-codes).)
 
 It is important to note that a single invocation of the composition `runner
-. testgen` correponds to a single unit test. Users are encouraged to run this
+. testgen` corresponds to *a single unit test*. Users are encouraged to run this
 composition in a loop, to gain the usual assurances given by property tests.
 
-If a given test fails, and shrinking is desired, users can rerun `runner` with
-the outputted shrink index. The pair `(testfile, shrinkindex)` is the entirety
-of the shrink search state. By explicitly threading this state through flags
-and stdout, the system is stateless.
+If a given test fails, and (further) shrinking is desired, users can rerun
+`runner` with the outputted shrink index and the initial test file. The pair
+`(testfile, shrinkindex)` is the entirety of the shrink search state.
+By explicitly threading this state through flags and stdout, the system is
+stateless.
 
 A basic testing workflow would be like follows:
 
-1. The user obtains a point schedule from `testgen`.
-2. The user invokes our `runner` binary, passing in the point schedule as an
+1. The user obtains a test file with an embedded point schedule from `testgen`.
+2. The user invokes the `runner` binary, passing in the test file as an
    argument.
 3. `runner` starts up the simulated peers, and returns a topology file.
 4. The user starts its node with the given topology file.
@@ -165,10 +172,10 @@ A basic testing workflow would be like follows:
 6. Once all of the peers have been connected to, the point schedule begins
    running.
 7. After the point schedule has finished, we observe the final state of the node.
-8. The server will exit with a return code (see [exit-codes](#exit-codes)) corresponding to
-   whether or not the node ended in the correct state, producing either a
-   shrink index for subsequent test run or a test file with a minimal counter
-   example.
+8. The `runner` will exit with a return code (see [exit-codes](#exit-codes))
+   corresponding to whether or not the node ended in the correct state,
+   producing either a shrink index for subsequent test run or a test file with
+   a minimal counterexample.
 
 ```mermaid
 ---
@@ -218,7 +225,8 @@ sequenceDiagram
 The `shrinkView` tool accepts a test file and a shrink index, and outputs the
 test file corresponding to the given shrink index. This tool is primarily
 useful for looking at non-minimal test inputs, eg, when the user doesn't want
-to iterate the shrinking all the way down to a minimal example.
+to iterate the shrinking all the way down to a minimal counterexample or desires
+to keep file records of intermediate shrunk counterexamples.
 
 
 #### Supported Operations and Flags
@@ -235,17 +243,23 @@ The **test generator** CLI tool supports, at least, the following operations:
 - `meta` to access test class metadata, eg the number of `desired-passes`
   we expect to run a test for.
 
-The **test runner** CLI tool supports the following optional flags:
+The **test runner** CLI tool takes a single test file as mandatory argument and
+supports the following optional flags:
 
 - `--shrink-index` to specify the shrunk point schedule to run, according to the
   given index. The index values are output by the `runner` itself.
 - `--topology-file` specifies the output path for the topology file.
-- `--minimal-test-output` specifies the file path to write the current point
-  schedule if no further shrinking is possible.
+- `--minimal-test-output` specifies a file path to write the last counterexample
+  test file to if no further shrinking is possible. This is the only case
+  `runner` outputs a test file. Non-minimal counterexample test files can be
+  produced by using `shrinkview`.
+
+The **shrink viewer** tool has two mandatory arguments (a test file and a shrink
+index), a single mode of operation, and no flags.
 
 These operations provide the primitives needed to orchestrate a QuickCheck-like
 workflow. For example, users are free to run the entire test suite by looping
-over `testgen list-classes`.
+over the output of `testgen list-classes`.
 
 
 #### Exit Codes
@@ -272,7 +286,7 @@ standards.
 
 If the property succeeded, but the shrink index was non-`empty`, we will exit
 with code `CONTINUE_SHRINKING`. In addition, we will output the result of `succ
-shrinkIndex` on stdout. While this is technically a test pass, it is a pass for
+shrinkIndex` (the successive shrink branch) on stdout. While this is technically a test pass, it is a pass for
 a shrunk input. Thus this is merely a "local" success, rather than a "global"
 success.
 
@@ -283,9 +297,9 @@ on stdout. This corresponds to a non-minimal test failure.
 If the property failed and we cannot `extend` the shrink index, we will exit
 with code `TEST_FAILED`, and produce the minimal test case on stdout.
 
-When the `CONTINUE_SHRINKING` bit is part of the exit code, the user is
-encouraged to restart the `runner` with the new shrink index, in order to
-manually "pump" the shrinker.
+When the `CONTINUE_SHRINKING` bit is set in the exit code, the user can
+rerun the `runner` with the new shrink index, in order to continuing searching
+for a smaller counter examples.
 
 
 ## Alternatives
@@ -302,8 +316,9 @@ preclude the possibility of implementing this.
 ## Unresolved Questions
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
-  conceptually clearer to have a peer whose sole job is to collect data. As
-  a counterexample, what happens when the peer schedule is empty?
+  conceptually clearer to have a peer whose sole job is to collect data.
+  For example, in the case of an empty peer schedule it is clear that the
+  downstream peer would still get the correct state.
 
 ## Implementation Plan
 
@@ -337,9 +352,9 @@ allTheTests :: TestSuite ConsensusTest
 runConsensusTest :: ConsensusTest -> Property
 ```
 
-The change to `cardano-node` would be minimal, and it essentially boils
+The change to `cardano-node`'s test suite would be minimal, and it essentially boils
 down to implementing `runConsensusTest` using `forAllGenesisTest`, which should
-have no local effect on the implementation. Along this lines,
+have no local effect on the implementation. Along these lines,
 `toTasty :: TestSuite ConsensusTest -> TestTree` would essentially traverse the
 `TestSuite` using `runConsensusTest`.
 
@@ -377,11 +392,11 @@ consistently tested during development.
 In this milestone, we will deliver a minimal implementation of `runner`,
 supporting:
 
-- (mindless, derived) parsing of point schedule test files
+- (bare-bones) parsing of point schedule test files
 - generating topology files
 - running point schedules
 - observing the state of the NUT
-- returning an appropriate error code of among `SUCCESS`, `INTERNAL_ERROR`,
+- returning an appropriate error code among `SUCCESS`, `INTERNAL_ERROR`,
   `BAD_USAGE` or `TEST_FAILED`
 
 We explicitly *will not* implement anything around generators or shrinking in
@@ -397,7 +412,7 @@ does what it ought.
 Provide a useful failure feedback, so that users can leverage the test
 to find specific bugs on their consensus protocol implementation.
 
-Deliver a shrinking strategy to run our executable from [1] on subsequently
+Deliver a shrinking strategy to run our executable from Milestone 1 on subsequently
 smaller tests.
 
 
@@ -431,11 +446,6 @@ At this point, the MVP is working as expected on the `cardano-node`; our goal
 now is to ensure this works for other implementations, and that our design is
 decoupled from any internal details of `cardano-node`.
 
-As a stretch goal: it would be very rewarding to actually find a test failure in
-another implementation. Care must be taken to ensure that this is, however, a
-failure in the node, and not some artifact of our testing procedure.
-
-
 #### Deliverables
 
 In this milestone, our primary deliverable will be to successfully test a point
@@ -456,12 +466,14 @@ on alternative nodes to actually use any of this testing machinery.
 #### Questions to Answer
 
 Do we need to simulate time? This might be related to configuration access to
-node timeouts (as Network delays would be irrelevant in this setting).
+node timeouts (as network latency would be irrelevant in this setting).
 
+In this milestone, we will consult with Amaru architects on what concerns they
+have on satisfying the proposed interface.
 
 #### Risks
 
-With the current lineup, our team has minimal knowledge of Rust. Depending of
+With current staffing, our team has minimal knowledge of Rust. Depending of
 the difficulty of making the necessary changes, we might need to pull in
 external help.
 
@@ -475,7 +487,7 @@ the approach official. We will refactor the existing test suite into a reified
 [`TestSuite`](#testsuite-anchor), from which we can extract both the existing
 `tasty` test suite, as well as the data for `testgen`.
 
-This step will require patching `ouroboros-consensus`, which is why we want to
+This step will require patching `ouroboros-consensus`'s test suite, which is why we want to
 have proven the technology before making upstream changes.
 
 
@@ -486,7 +498,7 @@ In this milestone, we will deliver:
 1. a design and specification of the serialization format for our test files
 2. corresponding changes to `runner` and `shrinkview` for parsing and
    serializing these files
-3. we will port all of the existing ouroboros-consensus tests into a reified
+3. we will port all of the existing `ouroboros-consensus` tests into a reified
    [`TestSuite`](#testsuite-anchor) representation.
 
 In addition, we will deliver the `testgen` utility, including:
