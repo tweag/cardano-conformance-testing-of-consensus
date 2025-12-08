@@ -446,36 +446,26 @@ At this point, the MVP is working as expected on the `cardano-node`; our goal
 now is to ensure this works for other implementations, and that our design is
 decoupled from any internal details of `cardano-node`.
 
+The central step in this milestone will be a consultation with the
+[Amaru](https://github.com/pragma-org/amaru) architects
+to explain out the design to them and discuss any concerns about satisfying the
+proposed interface, which *a priori* consists of configurable options to disable
+cryptography, change timeouts, and parse topology files.
+
 #### Deliverables
 
-In this milestone, our primary deliverable will be to successfully test a point
-schedule against [Amaru](https://github.com/pragma-org/amaru). This will likely
-involve some hacking directly on Amaru, (eg to disable crypto, or to make
-timeouts configurable.)
+In this milestone, our primary deliverable will be a design update integrating
+the feedback from the Amaru architects, including a high-level overview
+and analysis of the configurable options necessary for *any* implementation
+to test against our harness.
 
-Our other deliverable here will be a high-level overview and analysis of the
-necessary changes required to test against Amaru. Presumably these will end up
-being the set of configurable options necessary for *any* implementation to test
-against our harness. At the forefront, we have the parsing of topology files and
-disabling block crypto as requirements.
-
-We explicitly would like to know the expected *implementation burden* required
-on alternative nodes to actually use any of this testing machinery.
-
+We explicitly aim for insight into the expected *implementation burden*
+required on alternative nodes.
 
 #### Questions to Answer
 
 Do we need to simulate time? This might be related to configuration access to
 node timeouts (as network latency would be irrelevant in this setting).
-
-In this milestone, we will consult with Amaru architects on what concerns they
-have on satisfying the proposed interface.
-
-#### Risks
-
-With current staffing, our team has minimal knowledge of Rust. Depending of
-the difficulty of making the necessary changes, we might need to pull in
-external help.
 
 
 ### Milestone 4 - Implement `testgen`
