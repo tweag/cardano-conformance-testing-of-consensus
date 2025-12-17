@@ -454,10 +454,14 @@ cryptography, change timeouts, and parse topology files.
 
 #### Deliverables
 
-In this milestone, our primary deliverable will be a design update integrating
-the feedback from the Amaru architects, including a high-level overview
-and analysis of the configurable options necessary for *any* implementation
-to test against our harness.
+In this milestone we will deliver an updated version of `runner` that uses
+cardano blocks instead of `TestBlock`s, which are exclusive to `cardano-node`
+testing infrastructure.
+
+Furthermore, we will deliver a design update integrating the feedback from
+the Amaru architects, including a high-level overview and analysis of the
+configurable options necessary for *any* implementation to test against
+our harness.
 
 We explicitly aim for insight into the expected *implementation burden*
 required on alternative nodes.
