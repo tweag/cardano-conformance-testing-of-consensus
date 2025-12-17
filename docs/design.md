@@ -286,9 +286,11 @@ standards.
 
 If the property succeeded, but the shrink index was non-`empty`, we will exit
 with code `CONTINUE_SHRINKING`. In addition, we will output the result of `succ
-shrinkIndex` (the successive shrink branch) on stdout. While this is technically a test pass, it is a pass for
-a shrunk input. Thus this is merely a "local" success, rather than a "global"
-success.
+shrinkIndex` (the successive shrink branch) on stdout; if this operation fails,
+we deem  the `parent shrinkIndex` case a minimal counterexample and output it
+to stdout. While both cases are technically a test pass, they are a pass for
+a shrunk input. Thus we regard them as merely a "local" success, rather than
+"global" success.
 
 If the property failed, and we can `extend` the shrink index, we will exit with
 code `TEST_FAILED | CONTINUE_SHRINKING` and output the result of `extend shrinkInput`
@@ -299,7 +301,7 @@ with code `TEST_FAILED`, and produce the minimal test case on stdout.
 
 When the `CONTINUE_SHRINKING` bit is set in the exit code, the user can
 rerun the `runner` with the new shrink index, in order to continuing searching
-for a smaller counter examples.
+for smaller counterexamples.
 
 
 ## Alternatives
