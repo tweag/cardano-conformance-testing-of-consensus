@@ -506,7 +506,7 @@ In addition, we will deliver the `testgen` utility, including:
   another library? We might need to do some cabal shuffling here.
 
 
-### Milestone 6 - UX Improvement
+### Milestone 5 - UX Improvement
 
 #### Goals
 
