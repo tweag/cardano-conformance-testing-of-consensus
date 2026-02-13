@@ -1,18 +1,23 @@
 # Conformance Testing of Consensus
 
-Assorted material for design and implementation.
+A project approved within
+[TWEAG’s Proposals for multiple core budget projects for Cardano 2025](https://governancespace.com/en-us/budget-discussions/205).
+
+This repository is intended for project tracking and for documenting various
+aspects of the design and implementation.
 
 A suite of tools that provide black-box conformance testing for nodes
-implementing the Ouroboros Praos consensus protocol. These tools expose part of
-[`cardano-node`](https://github.com/IntersectMBO/cardano-node)'s property test
-suite to help alternative nodes verify they have implemented the consensus
-protocol stack correctly, so that all participating nodes ultimately agree
-on the "right" chain when engaging in the protocol.
+implementing the Ouroboros Praos consensus protocol. These tools expose
+[`cardano-node`](https://github.com/IntersectMBO/cardano-node)'s
+*node vs environment* tests to help alternative nodes verify they have
+implemented the consensus protocol stack correctly, so that all participating
+nodes ultimately agree on the "right" chain when engaging in the protocol.
 
 To accomplish this, upstream peers are simulated to build and serve a
-concerted chain, whose generation is informed by possible environmental
-conditions (e.g. adversarial behavior and network latency), and the node under
-test is judged by its responses to stimuli.
+concerted chain, whose generation can be tuned to simulate extreme,
+but possible, environmental conditions caused, for example, by coordinated
+adversarial behavior and network latency). The node under test is judged by
+its responses to stimuli.
 
 See the [design document](./docs/design.md) for details.
 
