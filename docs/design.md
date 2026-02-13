@@ -28,10 +28,10 @@ stack correctly.
   shrinking capability that attempts, in case of failure, to find the smallest
   or simplest counterexample to facilitate the diagnosis of bugs.
 
-Correctness here is an *extremely important* property---much more so than in
+Correctness here is an *extremely important* property—much more so than in
 most software projects. Nodes failing to agree on the correct chain risks an
-accidental hard fork. Should one persist long enough the protocol  might be
-unable to recover without external/etc intervention.
+accidental hard fork. Should one persist long enough the protocol might be
+unable to recover without external intervention.
 
 This document gives a design for a suite of tools, and the necessary
 infrastructure changes, to expose these existing tests in a form that
@@ -45,7 +45,7 @@ nor that they have access to a
 ## Context
 
 The tests we'd like to expose to alternative implementations are in the "Node
-vs Environment" style. In effect, while we are ultimately interested in the
+vs Environment" (NvE) style. In effect, while we are ultimately interested in the
 behavior of multiple nodes agreeing on the "right" chain, we can more easily
 test by taking advantage of two insights:
 
@@ -54,7 +54,7 @@ test by taking advantage of two insights:
    is a global best chain, we have a very simple judgment rule as to whether
    a node has selected the correct one.
 2. Once we have an easily identified honest chain, we no longer need to
-   simulate multiple nodes and look for agreement - instead, we run only
+   simulate multiple nodes and look for agreement—instead, we run only
    a single node and judge the correctness of its responses to stimuli.
 
 The testing framework thus makes use of a single coordinated *point schedule,*
@@ -70,16 +70,17 @@ colluding) peers. After evaluation of the point schedule, the Node Under Test
   that the peer should send to the NUT. See the relevant documentation
   [here](https://github.com/IntersectMBO/ouroboros-consensus/blob/374ef153e20d83ad3d42d850ce560b67034ac578/ouroboros-consensus-diffusion/test/consensus-test/Test/Consensus/PointSchedule/SinglePeer.hs).
 
-Whilst the point schedule currently is implemented inside the Haskell node's test suite, its
-declarative nature makes it possible to export this testing method and make it
-usable across diverse node implementations. To ensure this, we will look only
-at the messages sent over the network, to ensure we are performing black-box
-testing. It will also be possible for alternative nodes to use peer simulation
-for white-box testing in cases that depend on internal tracing (eg. file
-handles, memory usage, etc.). This suite of tools aims only at properties
-related to test conformance against the Ouroboros Praos consensus protocol.
-For example, that a node should always choose the longest of two competing
-chains or that a rollback is triggered (or not) under specific conditions.
+Whilst the point schedule currently is implemented inside the Haskell node's
+test suite, its declarative nature makes it possible to export this testing
+method and make it usable across diverse node implementations. To ensure this,
+we will look only at the messages sent over the network, to ensure we are
+performing black-box testing. It will also be possible for alternative nodes
+to use peer simulation for white-box testing in cases that depend on internal
+tracing (e.g. file handles, memory usage, etc.). This suite of tools aims only
+at properties related to test conformance against the Ouroboros Praos consensus
+protocol. For example, that a node should always choose the longest of two
+competing chains or that a rollback is triggered (or not) under
+specific conditions.
 
 
 ## Proposed Specification
@@ -236,11 +237,11 @@ The **test generator** CLI tool supports, at least, the following operations:
 - `list-classes` to list all available test classes.
 - `generate` to produce a test file for a test class.
    This operation has the following optional flags:
-   - `--seed` to specify a seed for the generator (eg to enable parallel
+   - `--seed` to specify a seed for the generator (e.g. to enable parallel
      workflows and reproducibility.)
    - `--size` to specify the target size of the point schedule (eg a desirable
      functionality for shrinking.)
-- `meta` to access test class metadata, eg the number of `desired-passes`
+- `meta` to access test class metadata, e.g. the number of *desired passes*
   we expect to run a test for.
 
 The **test runner** CLI tool takes a single test file as mandatory argument and
@@ -280,7 +281,7 @@ In the case that the property succeeded and the shrink index is `empty`, we
 will exit with code `SUCCESS`. This corresponds to a test pass.
 
 `INTERNAL_ERROR` is for when something goes wrong inside of `runner` itself,
-and `BAD_USAGE` is for when the program is invoked incorrectly (eg called with
+and `BAD_USAGE` is for when the program is invoked incorrectly (e.g. called with
 unparsable flags.) This usage of codes 1 and 2 is consistent with POSIX
 standards.
 
@@ -304,7 +305,7 @@ rerun the `runner` with the new shrink index, in order to continuing searching
 for smaller counterexamples.
 
 
-## Alternatives
+### Alternatives
 
 - Make `runner` automatically generate the next shrinking candidate (point
 schedule) and ask the client to run it, instead of just passing a shrink index
@@ -315,7 +316,7 @@ a design choice for composability. In fact, our original design does not
 preclude the possibility of implementing this.
 
 
-## Unresolved Questions
+### Unresolved Questions
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
   conceptually clearer to have a peer whose sole job is to collect data.
@@ -324,41 +325,51 @@ preclude the possibility of implementing this.
 
 ## Implementation Plan
 
-As things stand, each test property is implicit within calls to
-`forAllGenesisTest`. In order to expose the existing test suite to our
-`testgen` and `runner` tools, we propose reifying each test property as
-an instance of a `ConsensusTest` data type, which are arranged into a
-`TestSuite` data structure.
+As things stand, each NvE test property is implicit within calls to
+`Test.Consensus.Genesis.Setup.forAllGenesisTest`. In order to expose the
+existing test suite to our `testgen` and `runner` tools, we propose reifying
+each test property as an instance of a `ConformanceTest` data type, which are
+arranged into a `TestSuite` data structure parameterized over a `key` type,
+representing test classes, and a `blk` type for the blocks used on the tests.
 
 <a name="testsuite-anchor"></a>
 ```haskell
+
 data TestClass
 
-data TestSuite a
-instance Semigroup (TestSuite a)
-instance Monoid (TestSuite a)
+instance Finite TestClass
+instance Ord TestClass
 
-insert :: TestClass -> a -> TestSuite a -> TestSuite a
-toListWithKey :: TestSuite a -> [(TestClass, a)]
+data TestSuite blk key
 
+mkTestSuite ::
+  ( Ord key
+  , Finite key
+  ) => (key -> TestSuiteData blk) -> TestSuite blk key
 
-data ConsensusTest = ConsensusTest
-  { generator :: Gen PointSchedule
-  , shrinker :: PointSchedule -> [PointSchedule]
-  , property :: PointSchedule -> IO Bool
-  , desiredPasses :: Int
+get :: TestSuite blk key -> key ->  ConformanceTest blk
+toTestTree :: TestSuite blk key -> [TestTree]
+
+data ConformanceTest blk = ConformanceTest
+  { generator       :: Gen (GenesisTestFull blk)
+  , config          :: SchedulerConfig
+  , shrinker        :: (GenesisTestFull blk -> StateView blk -> [GenesisTestFull blk])
+  , property        :: GenesisTestFull blk -> StateView blk -> Property
+  , desiredPasses   :: Int -> Int
+  , maxSize         :: Int -> Int
+  , description     :: String
   }
 
-allTheTests :: TestSuite ConsensusTest
+allTheTests :: TestSuite CardanoBlock TestClass
 
-runConsensusTest :: ConsensusTest -> Property
+runConformanceTest :: ConformanceTest -> Property
 ```
 
 The change to `cardano-node`'s test suite would be minimal, and it essentially boils
-down to implementing `runConsensusTest` using `forAllGenesisTest`, which should
+down to implementing `runConformanceTest` using `forAllGenesisTest`, which should
 have no local effect on the implementation. Along these lines,
-`toTasty :: TestSuite ConsensusTest -> TestTree` would essentially traverse the
-`TestSuite` using `runConsensusTest`.
+`toTestTree :: TestSuite blk key -> [TestTree]` would essentially traverse the
+`TestSuite` using `runConformanceTest`.
 
 
 ## Milestones
@@ -483,8 +494,9 @@ the approach official. We will refactor the existing test suite into a reified
 [`TestSuite`](#testsuite-anchor), from which we can extract both the existing
 `tasty` test suite, as well as the data for `testgen`.
 
-This step will require patching `ouroboros-consensus`'s test suite, which is why we want to
-have proven the technology before making upstream changes.
+This step will require patching and exposing part of `ouroboros-consensus-diffusion`'s
+test suite, which is why we want to have proven the technology before making
+upstream changes.
 
 
 #### Deliverables
@@ -502,12 +514,12 @@ In addition, we will deliver the `testgen` utility, including:
 1. support for the `generate` command, including selection of test class,
    optional seed and optional size parameters.
 2. support for the `list-classes`  command
-3. support for the `meta desired-passes` command
+3. support for the `meta` command
 
 
 #### Questions
 
-- Can `ouroboros-consensus:consensus-tests` remain as the canonical place for
+- Can `ouroboros-consensus-diffusion:consensus-tests` remain as the canonical place for
   this data? Is it possible for our app to depend directly on the test suite of
   another library? We might need to do some cabal shuffling here.
 
