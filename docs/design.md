@@ -59,8 +59,9 @@ test by taking advantage of two insights:
 
 The testing framework thus makes use of a single coordinated *point schedule,*
 which is used to simulate multiple upstream (possibly adversarial, possibly
-colluding) peers. After evaluation of the point schedule, the Node Under Test
-(NUT) is validated to ensure it ends up with the correct chain.[^ps]
+colluding) peers serving from a concerted block tree rooted at the genesis block
+with a predetermined best chain. After evaluation of the point schedule, the
+Node Under Test (NUT) is validated to ensure it ends up with the correct chain.[^ps]
 
 [^ps]: A "point schedule" is a set of tables, having one table per simulated
   peer, where each row on the table corresponds to a point in time and each
@@ -74,13 +75,10 @@ Whilst the point schedule currently is implemented inside the Haskell node's
 test suite, its declarative nature makes it possible to export this testing
 method and make it usable across diverse node implementations. To ensure this,
 we will look only at the messages sent over the network, to ensure we are
-performing black-box testing. It will also be possible for alternative nodes
-to use peer simulation for white-box testing in cases that depend on internal
-tracing (e.g. file handles, memory usage, etc.). This suite of tools aims only
-at properties related to test conformance against the Ouroboros Praos consensus
-protocol. For example, that a node should always choose the longest of two
-competing chains or that a rollback is triggered (or not) under
-specific conditions.
+performing black-box testing. This suite of tools aims only at properties
+related to test conformance against the Ouroboros Praos consensus protocol.
+For example, that a node should always choose the longest of two competing
+chains or that a rollback is triggered (or not) under specific conditions.
 
 
 ## Proposed Specification
@@ -139,12 +137,14 @@ topology file and connect to the simulated peers. Once they have all been
 connected to, the point schedule will begin running. The simulated peers will
 follow the point schedule, sending their mocked blocks to the NUT.
 
-Who drives the *ticking* of the schedule remains an open question, dependent of
-the trade-off between node implementation burden and testing time.
-On the one hand, if the ticking is driven by the NUT, the simulated run can
-be optimized for it. Alternatively, the ticking could be driven by the `runner`
-itself, using tunable timeouts with defaults aiming to balance testing time
-and node throughput.
+The test `runner` is in charge of driving the *ticking* of the schedule. This
+is a key design decision that stems from the goal of minimizing node
+implementation burden; otherwise tuneable timeouts or a protocol time abstraction
+would be needed to attain reasonable testing times while using the actual
+node-to-node communication to stress-test the consensus implementation.
+This is accomplished by preserving the ability of chain generators to produce
+exotic chains, for which we ask, we ask some
+[NUT configuration requirements](#nut-configuration-requirements).
 
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
@@ -173,7 +173,7 @@ A basic testing workflow would be like follows:
 6. Once all of the peers have been connected to, the point schedule begins
    running.
 7. After the point schedule has finished, we observe the final state of the node.
-8. The `runner` will exit with a return code (see [exit-codes](#exit-codes))
+8. The `runner` will exit with a return code (see [Exit Codes](#exit-codes))
    corresponding to whether or not the node ended in the correct state,
    producing either a shrink index for subsequent test run or a test file with
    a minimal counterexample.
@@ -369,7 +369,110 @@ The change to `cardano-node`'s test suite would be minimal, and it essentially b
 down to implementing `runConformanceTest` using `forAllGenesisTest`, which should
 have no local effect on the implementation. Along these lines,
 `toTestTree :: TestSuite blk key -> [TestTree]` would essentially traverse the
-`TestSuite` using `runConformanceTest`.
+`TestSuite` using `runConformanceTest`. Another relevant change would be
+exposing part of the `ouroboros-consensus-diffusion` test infrastructure in a
+new sublibrary, reducing the API surface to the minimum requirements of the
+proposed executables.
+
+## NUT Configuration Requirements
+
+As our testing infrastructure is designed to work on the node-to-node
+communication protocol, which every node must necessarily implement,
+the implementation overhead implied by out tools becomes minimal. In brief, the
+only requirements test against our harness are:
+
+1. Parsing the generated topology file to connect to the simulated peers.
+2. Have a means to disable VRF[^vrf] cryptographic validation.
+
+[^vrf]: [Verifiable Random Functions](https://ouroboros-consensus.cardano.intersectmbo.org/docs/references/glossary/#verifiable-random-functions-vrf)
+
+The reason for the last requirement is related to the chain generators used for
+the NvE tests. The generated chains essentially reify an omniscient view
+of an artificial leader schedule; by disabling the header/block VRF validation,
+the chain generators are free to instantiate rare but possible scenarios, as
+slots can then be populated on demand. This translates into the ability to
+increase block density arbitrarily (up to slot granularity) and stress-test
+the consensus implementation with reasonable time and resources.
+
+On the one hand, we consider the implementation of both features to be of
+negligible cost in contrast with the gain of a whole test suite.
+Case in point, since the VRF check is an isolated component of the protocol
+disabling it should consist of a change in the order of one line of code.
+For example, in `cardano-node`, this is accomplished by:
+
+```diff
+-doValidateVRFSignature eta0 pd f b = do
+-  case Map.lookup hk pd of
+-    Nothing -> throwError $ VRFKeyUnknown hk
+-    Just (SL.IndividualPoolStake sigma _totalPoolStake vrfHK) -> do
+-      let vrfHKStake = SL.fromVRFVerKeyHash vrfHK
+-          vrfHKBlock = VRF.hashVerKeyVRF vrfK
+-      vrfHKStake == vrfHKBlock
+-        ?! VRFKeyWrongVRFKey hk vrfHKStake vrfHKBlock
+-      VRF.verifyCertified
+-        ()
+-        vrfK
+-        (mkInputVRF slot eta0)
+-        vrfCert
+-        ?! VRFKeyBadProof slot eta0 vrfCert
+-      checkLeaderNatValue vrfLeaderVal sigma f
+-        ?! VRFLeaderValueTooBig (bvValue vrfLeaderVal) sigma f
+-  where
+-    hk = coerceKeyRole . hashKey . Views.hvVK $ b
+-    vrfK = Views.hvVrfVK b
+-    vrfCert = Views.hvVrfRes b
+-    vrfLeaderVal = vrfLeaderValue (Proxy @c) vrfCert
+-    slot = Views.hvSlotNo b
++doValidateVRFSignature eta0 pd f b = pure ()
+```
+
+This change can be e.g. translated to a CLI flag allowing a node to trust
+election proofs without checking them. The actual way such a configurable option
+is to be exposed is left for each node to decide.
+
+Node implementers might rise reasonable concerns, as said cryptography is a
+critical security measure (intended to make bad scenarios unlikely). If
+designing such an option in a safe manner is out of scope for a team, a low
+cost alternative would be to write a patch, e.g. adding an
+environment variable to disable the feature altogether, that can be cherry
+picked when running the testing simulation.
+
+Finally, the compliance of the VRF check itself can be tested via other
+methods, like syncing to mainnet, so there is no significant loss regarding
+consensus protocol testing scope.
+
+### Considered Alternative Requirements
+
+Alternatives to accomplish similar benefits were considered, but the
+proposed one above was chosen on the account of lowest implementation effort
+and maximum testing flexibility. For completeness and reference, we include
+mention of these.
+
+- Have the implementation parameterized over a notion of time, where the
+  production release could instantiate it to wall-clock time and have it use
+  the input from a time driver for testing. This alternative would be ideal,
+  but _a priori_ implies non-trivial cost on nodes that have not adopted this
+  design early.
+- Tweaking protocol parameters. For example, setting the active slot coefficient
+  ($f$) to nearly one, so that active slots become more common and thus
+  more slots become electable by the controlled stake. Nevertheless, setting
+  this to a very high value could have unknown effects by other parameters,
+  such as the epoch length, which is calculated as $10k/f$. Furthermore, even
+  with $f$ set to 0.99, the probability of successfully generating a long chain
+  of 200 succesive blocks would only be about 13%. Those this alternative is
+  not suitable for reliable testing.
+- Using the Transitional Praos Protocol (`TPraos`) leader election overlay.
+  This protocol variant was implemented for the transition between Byron and
+  Shelley eras; overlay slots where used to select block leaders from a set of
+  fixed Byron keys, ranging over a transition parameter that progressively
+  increased towards the exclusive use of VRF election. This protocol could be
+  used to override the VRF check, issuing the fixed keys from Byron only.
+  However, new nodes may not implement legacy protocols, including TPraos.
+
+Note the first two alternatives imply altering the existing chain generators
+to restrict themselves to available slots. This is would lead to a significant
+increase in the number of required slots for testing, as most slots would
+be empty.
 
 
 ## Milestones
@@ -474,7 +577,10 @@ testing infrastructure.
 Furthermore, we will deliver a design update integrating the feedback from
 the Amaru architects, including a high-level overview and analysis of the
 configurable options necessary for *any* implementation to test against
-our harness.
+our harness.[^amaru-update]
+
+[^amaru-update]: Such update has been made, and the necessary configuration
+  options are described in this [section](#nut-configuration-requirements).
 
 We explicitly aim for insight into the expected *implementation burden*
 required on alternative nodes.
