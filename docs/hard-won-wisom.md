@@ -18,7 +18,7 @@ with it own set of quirks depending on what you want to do.
 **Preventing GC of your nix shell:** make sure to set `keep-derivations = true`
 and `keep-outputs = true` on your Nix configuration file. Next, gc-roots need to
 be created for the nix-shell. Using `nix-direnv` takes care of this automatically,
-but you could also manually created a gc-root using something like:
+but you could also manually create a gc-root using something like:
 `nix-instantiate shell.nix --indirect --add-root $DIR/.nix-gc-roots/shell.drv`.
 References:
 
@@ -27,15 +27,15 @@ References:
 
 When using `nix-direnv` to hook your editor to the nix shell is important to
 note that the derivation is probably hooked to `.cabal` and `cabal.project`.
-If one updates this files is important to `direnv reload` for the cached
-nix shell to update.
+If one updates this files and finds problems, the first debugging step should
+be running `direnv reload` for the cached nix shell to update in case it did not.
 
 ### Doom Emacs
 
 Enable the `direnv`, `lsp` and `(haskell +lsp)` modules in `init.el`.
 
 When entering a new project, run the following in the repository root to enable
-direnv to use the nix shell:
+`direnv` to use the nix shell:
 
 ```
 echo "use flake" > .envrc && direnv allow .
@@ -46,15 +46,22 @@ Here are some useful configuration options for `lsp-haskell` that can be set in
 
 ```elisp
 (after! lsp-haskell
-  (setq lsp-haskell-server-path "haskell-language-server") ;; pick the nix shell executable
-  (setq lsp-haskell-formatting-provider "fourmolu") ;; formatter used in ouroboros-consensus
-  (setq lsp-haskell-session-loading "multipleComponents") ;; apparently needed, increases memory footprint
+  ;; Use the nix shell provided executable (default: haskell-language-server-wrapper).
+  ;; as expected to work with GHCup executables.
+  (setq lsp-haskell-server-path "haskell-language-server") 
+  ;; Set the formatter (default: ormolu); `ouroboros-consensus` uses fourmolu.
+  (setq lsp-haskell-formatting-provider "fourmolu") 
+  ;; Use the nix shell provided executable to ensure CI compatibility.
+  (setq lsp-haskell-plugin-fourmolu-config-external t) 
+  ;; Convenient to reference across components,
+  ;; but increases memory footprint substantially.
+  (setq lsp-haskell-session-loading "multipleComponents") 
   )
 ```
 
 ## Merging code
 
-When developing across many Cardano packages the (currentlyu) recommended
+When developing across many Cardano packages the (currently) recommended
 workflow is to pick a specific `cardano-node` release tag (having a comprehensive
 change log) and develop against the appointed dependencies.
 
