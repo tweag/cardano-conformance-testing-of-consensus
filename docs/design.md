@@ -143,14 +143,14 @@ implementation burden; otherwise tuneable timeouts or a protocol time abstractio
 would be needed to attain reasonable testing times while using the actual
 node-to-node communication to stress-test the consensus implementation.
 This is accomplished by preserving the ability of chain generators to produce
-exotic chains, for which we ask, we ask some
+exotic chains, for which we ask some
 [NUT configuration requirements](#nut-configuration-requirements).
 
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
 ensure the desired property holds. Depending on the result of the test and the
 state of the shrink index, we will perform different actions
-(see [exit-codes](#exit-codes).)
+(see [Exit Codes](#exit-codes).)
 
 It is important to note that a single invocation of the composition `runner
 . testgen` corresponds to *a single unit test*. Users are encouraged to run this
@@ -241,7 +241,7 @@ The **test generator** CLI tool supports, at least, the following operations:
      workflows and reproducibility.)
    - `--size` to specify the target size of the point schedule (eg a desirable
      functionality for shrinking.)
-- `meta` to access test class metadata, e.g. the number of *desired passes*
+- `meta` to access test class metadata, e.g. the number of `desired-passes`
   we expect to run a test for.
 
 The **test runner** CLI tool takes a single test file as mandatory argument and
@@ -265,7 +265,7 @@ over the output of `testgen list-classes`.
 
 #### Exit Codes
 
-The `Exit` bit mask enum is used in the following section:
+Here we describe the semantics of the `Exit` bit mask enum:
 
 ```c
 enum Exit {
@@ -320,7 +320,7 @@ preclude the possibility of implementing this.
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
   conceptually clearer to have a peer whose sole job is to collect data.
-  For example, in the case of an empty peer schedule it is clear that the
+  For example, in the case of an empty point schedule it is clear that the
   downstream peer would still get the correct state.
 
 ## Implementation Plan
@@ -337,17 +337,11 @@ representing test classes, and a `blk` type for the blocks used on the tests.
 
 data TestClass
 
-instance Finite TestClass
-instance Ord TestClass
-
 data TestSuite blk key
 
-mkTestSuite ::
-  ( Ord key
-  , Finite key
-  ) => (key -> TestSuiteData blk) -> TestSuite blk key
-
-get :: TestSuite blk key -> key ->  ConformanceTest blk
+mkTestSuite :: (key -> TestSuiteData blk) -> TestSuite blk key
+at :: TestSuite blk key -> key ->  TestSuiteData blk
+getTest :: TestSuiteData ->  ConformanceTest blk
 toTestTree :: TestSuite blk key -> [TestTree]
 
 data ConformanceTest blk = ConformanceTest
@@ -384,7 +378,7 @@ only requirements test against our harness are:
 1. Parsing the generated topology file to connect to the simulated peers.
 2. Have a means to disable VRF[^vrf] cryptographic validation.
 
-[^vrf]: [Verifiable Random Functions](https://ouroboros-consensus.cardano.intersectmbo.org/docs/references/glossary/#verifiable-random-functions-vrf)
+[^vrf]: [Verifiable Random Functions](https://ouroboros-consensus.cardano.intersectmbo.org/docs/references/glossary/#verifiable-random-functions-vrf).
 
 The reason for the last requirement is related to the chain generators used for
 the NvE tests. The generated chains essentially reify an omniscient view
@@ -423,25 +417,25 @@ For example, in `cardano-node`, this is accomplished by:
 -    vrfCert = Views.hvVrfRes b
 -    vrfLeaderVal = vrfLeaderValue (Proxy @c) vrfCert
 -    slot = Views.hvSlotNo b
-+doValidateVRFSignature eta0 pd f b = pure ()
++doValidateVRFSignature _ _ _ _ = pure ()
 ```
 
 This change can be e.g. translated to a CLI flag allowing a node to trust
-election proofs without checking them. The actual way such a configurable option
-is to be exposed is left for each node to decide.
+election proofs without checking them. The concrete way such a configurable
+option is to be exposed is left for each node to decide.
 
-Node implementers might rise reasonable concerns, as said cryptography is a
+Node implementers might raise reasonable concerns, as said cryptography is a
 critical security measure (intended to make bad scenarios unlikely). If
 designing such an option in a safe manner is out of scope for a team, a low
 cost alternative would be to write a patch, e.g. adding an
 environment variable to disable the feature altogether, that can be cherry
-picked when running the testing simulation.
+picked only when running the testing simulation.
 
 Finally, the compliance of the VRF check itself can be tested via other
 methods, like syncing to mainnet, so there is no significant loss regarding
 consensus protocol testing scope.
 
-### Considered Alternative Requirements
+### Considered Alternatives
 
 Alternatives to accomplish similar benefits were considered, but the
 proposed one above was chosen on the account of lowest implementation effort
@@ -449,24 +443,26 @@ and maximum testing flexibility. For completeness and reference, we include
 mention of these.
 
 - Have the implementation parameterized over a notion of time, where the
-  production release could instantiate it to wall-clock time and have it use
+  production release would instantiate it to wall-clock time and have it use
   the input from a time driver for testing. This alternative would be ideal,
   but _a priori_ implies non-trivial cost on nodes that have not adopted this
   design early.
 - Tweaking protocol parameters. For example, setting the active slot coefficient
-  ($f$) to nearly one, so that active slots become more common and thus
+  $f$ to nearly one, so that active slots become more common and thus
   more slots become electable by the controlled stake. Nevertheless, setting
   this to a very high value could have unknown effects by other parameters,
-  such as the epoch length, which is calculated as $10k/f$. Furthermore, even
-  with $f$ set to 0.99, the probability of successfully generating a long chain
-  of 200 succesive blocks would only be about 13%. Those this alternative is
-  not suitable for reliable testing.
-- Using the Transitional Praos Protocol (`TPraos`) leader election overlay.
-  This protocol variant was implemented for the transition between Byron and
-  Shelley eras; overlay slots where used to select block leaders from a set of
-  fixed Byron keys, ranging over a transition parameter that progressively
-  increased towards the exclusive use of VRF election. This protocol could be
-  used to override the VRF check, issuing the fixed keys from Byron only.
+  such as the epoch length, which is calculated as $10k/f$ (where $k$ is the
+  security parameter). Furthermore, even with $f$ set to 0.99, the probability
+  of successfully generating a long chain with 200 successive blocks would only
+  be about 13%. Thus, this alternative is not suitable for reliable testing.
+- Using the Transitional Praos protocol (TPraos) leader election overlay.
+  This protocol variant was implemented for the transition from Byron to the
+  early Shelley era; it overlays the legacy Byzantine Fault Tolerant (BFT) regime
+  (used during Byron) atop the probabilistic PoS+VRF leader election of Praos,
+  and ranges over a transition parameter that progressively increases towards the
+  exclusive use of VRF election. BFT slots select block leaders deterministically
+  from a set of fixed keys; so by fixing the transition parameter, TPraos
+  could be used to override the VRF check.
   However, new nodes may not implement legacy protocols, including TPraos.
 
 Note the first two alternatives imply altering the existing chain generators
@@ -565,30 +561,17 @@ decoupled from any internal details of `cardano-node`.
 The central step in this milestone will be a consultation with the
 [Amaru](https://github.com/pragma-org/amaru) architects
 to explain out the design to them and discuss any concerns about satisfying the
-proposed interface, which *a priori* consists of configurable options to disable
-cryptography, change timeouts, and parse topology files.
+[configuration requirements](#nut-configuration-requirements).
+We explicitly aim for insight into the expected *implementation burden*
+required on alternative nodes.
 
 #### Deliverables
 
 In this milestone we will deliver an updated version of `runner` that uses
-cardano blocks instead of `TestBlock`s, which are exclusive to `cardano-node`
-testing infrastructure.
-
-Furthermore, we will deliver a design update integrating the feedback from
-the Amaru architects, including a high-level overview and analysis of the
-configurable options necessary for *any* implementation to test against
-our harness.[^amaru-update]
-
-[^amaru-update]: Such update has been made, and the necessary configuration
-  options are described in this [section](#nut-configuration-requirements).
-
-We explicitly aim for insight into the expected *implementation burden*
-required on alternative nodes.
-
-#### Questions to Answer
-
-Do we need to simulate time? This might be related to configuration access to
-node timeouts (as network latency would be irrelevant in this setting).
+`CardanoBlock`s instead of `TestBlock`s, which are exclusive to `cardano-node`
+testing infrastructure. Nodes fulfilling the
+[configuration requirements](#nut-configuration requirements) should be able
+to connect to the simulated peers and run a test.
 
 
 ### Milestone 4 - Implement `testgen`
@@ -609,18 +592,22 @@ upstream changes.
 
 In this milestone, we will deliver:
 
-1. a design and specification of the serialization format for our test files
-2. corresponding changes to `runner` and `shrinkview` for parsing and
-   serializing these files
-3. we will port all of the existing `ouroboros-consensus` tests into a reified
-   [`TestSuite`](#testsuite-anchor) representation.
+1. A design and specification of the serialization format for our test files.
+2. Corresponding changes to `runner` and `shrinkview` for parsing and
+   serializing these files.
+3. We will port all of the existing `ouroboros-consensus-diffusion` NvE tests
+   into a reified [`TestSuite`](#testsuite-anchor) representation.
+4. Move the code necessary for this project out of
+   `ouroboros-consensus-diffusion:test:consensus-test` into a new
+   `ouroboros-consensus-diffusion:lib:conformance-testing` sublibrary,
+   aiming for a minimal API surface to reduce maintenance burden.
 
 In addition, we will deliver the `testgen` utility, including:
 
-1. support for the `generate` command, including selection of test class,
+1. Support for the `generate` command, including selection of test class,
    optional seed and optional size parameters.
-2. support for the `list-classes`  command
-3. support for the `meta` command
+2. Support for the `list-classes`  command.
+3. Support for the `meta` command.
 
 
 #### Questions
