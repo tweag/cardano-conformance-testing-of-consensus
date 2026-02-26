@@ -28,10 +28,10 @@ stack correctly.
   shrinking capability that attempts, in case of failure, to find the smallest
   or simplest counterexample to facilitate the diagnosis of bugs.
 
-Correctness here is an *extremely important* property---much more so than in
+Correctness here is an *extremely important* property—much more so than in
 most software projects. Nodes failing to agree on the correct chain risks an
-accidental hard fork. Should one persist long enough the protocol  might be
-unable to recover without external/etc intervention.
+accidental hard fork. Should one persist long enough the protocol might be
+unable to recover without external intervention.
 
 This document gives a design for a suite of tools, and the necessary
 infrastructure changes, to expose these existing tests in a form that
@@ -45,7 +45,7 @@ nor that they have access to a
 ## Context
 
 The tests we'd like to expose to alternative implementations are in the "Node
-vs Environment" style. In effect, while we are ultimately interested in the
+vs Environment" (NvE) style. In effect, while we are ultimately interested in the
 behavior of multiple nodes agreeing on the "right" chain, we can more easily
 test by taking advantage of two insights:
 
@@ -54,13 +54,14 @@ test by taking advantage of two insights:
    is a global best chain, we have a very simple judgment rule as to whether
    a node has selected the correct one.
 2. Once we have an easily identified honest chain, we no longer need to
-   simulate multiple nodes and look for agreement - instead, we run only
+   simulate multiple nodes and look for agreement—instead, we run only
    a single node and judge the correctness of its responses to stimuli.
 
 The testing framework thus makes use of a single coordinated *point schedule,*
 which is used to simulate multiple upstream (possibly adversarial, possibly
-colluding) peers. After evaluation of the point schedule, the Node Under Test
-(NUT) is validated to ensure it ends up with the correct chain.[^ps]
+colluding) peers serving from a concerted block tree rooted at the genesis block
+with a predetermined best chain. After evaluation of the point schedule, the
+Node Under Test (NUT) is validated to ensure it ends up with the correct chain.[^ps]
 
 [^ps]: A "point schedule" is a set of tables, having one table per simulated
   peer, where each row on the table corresponds to a point in time and each
@@ -70,13 +71,11 @@ colluding) peers. After evaluation of the point schedule, the Node Under Test
   that the peer should send to the NUT. See the relevant documentation
   [here](https://github.com/IntersectMBO/ouroboros-consensus/blob/374ef153e20d83ad3d42d850ce560b67034ac578/ouroboros-consensus-diffusion/test/consensus-test/Test/Consensus/PointSchedule/SinglePeer.hs).
 
-Whilst the point schedule currently is implemented inside the Haskell node's test suite, its
-declarative nature makes it possible to export this testing method and make it
-usable across diverse node implementations. To ensure this, we will look only
-at the messages sent over the network, to ensure we are performing black-box
-testing. It will also be possible for alternative nodes to use peer simulation
-for white-box testing in cases that depend on internal tracing (eg. file
-handles, memory usage, etc.). This suite of tools aims only at properties
+Whilst the point schedule currently is implemented inside the Haskell node's
+test suite, its declarative nature makes it possible to export this testing
+method and make it usable across diverse node implementations. To ensure this,
+we will look only at the messages sent over the network, to ensure we are
+performing black-box testing. This suite of tools aims only at properties
 related to test conformance against the Ouroboros Praos consensus protocol.
 For example, that a node should always choose the longest of two competing
 chains or that a rollback is triggered (or not) under specific conditions.
@@ -138,18 +137,20 @@ topology file and connect to the simulated peers. Once they have all been
 connected to, the point schedule will begin running. The simulated peers will
 follow the point schedule, sending their mocked blocks to the NUT.
 
-Who drives the *ticking* of the schedule remains an open question, dependent of
-the trade-off between node implementation burden and testing time.
-On the one hand, if the ticking is driven by the NUT, the simulated run can
-be optimized for it. Alternatively, the ticking could be driven by the `runner`
-itself, using tunable timeouts with defaults aiming to balance testing time
-and node throughput.
+The test `runner` is in charge of driving the *ticking* of the schedule. This
+is a key design decision that stems from the goal of minimizing node
+implementation burden; otherwise tuneable timeouts or a protocol time abstraction
+would be needed to attain reasonable testing times while using the actual
+node-to-node communication to stress-test the consensus implementation.
+This is accomplished by preserving the ability of chain generators to produce
+exotic chains, for which we ask some
+[NUT configuration requirements](#nut-configuration-requirements).
 
 Upon completion of the point schedule, we will evaluate the test property. We
 can compare the final state of the NUT (as observed by the testing peer) and
 ensure the desired property holds. Depending on the result of the test and the
 state of the shrink index, we will perform different actions
-(see [exit-codes](#exit-codes).)
+(see [Exit Codes](#exit-codes).)
 
 It is important to note that a single invocation of the composition `runner
 . testgen` corresponds to *a single unit test*. Users are encouraged to run this
@@ -172,7 +173,7 @@ A basic testing workflow would be like follows:
 6. Once all of the peers have been connected to, the point schedule begins
    running.
 7. After the point schedule has finished, we observe the final state of the node.
-8. The `runner` will exit with a return code (see [exit-codes](#exit-codes))
+8. The `runner` will exit with a return code (see [Exit Codes](#exit-codes))
    corresponding to whether or not the node ended in the correct state,
    producing either a shrink index for subsequent test run or a test file with
    a minimal counterexample.
@@ -236,11 +237,11 @@ The **test generator** CLI tool supports, at least, the following operations:
 - `list-classes` to list all available test classes.
 - `generate` to produce a test file for a test class.
    This operation has the following optional flags:
-   - `--seed` to specify a seed for the generator (eg to enable parallel
+   - `--seed` to specify a seed for the generator (e.g. to enable parallel
      workflows and reproducibility.)
    - `--size` to specify the target size of the point schedule (eg a desirable
      functionality for shrinking.)
-- `meta` to access test class metadata, eg the number of `desired-passes`
+- `meta` to access test class metadata, e.g. the number of `desired-passes`
   we expect to run a test for.
 
 The **test runner** CLI tool takes a single test file as mandatory argument and
@@ -264,7 +265,7 @@ over the output of `testgen list-classes`.
 
 #### Exit Codes
 
-The `Exit` bit mask enum is used in the following section:
+Here we describe the semantics of the `Exit` bit mask enum:
 
 ```c
 enum Exit {
@@ -280,7 +281,7 @@ In the case that the property succeeded and the shrink index is `empty`, we
 will exit with code `SUCCESS`. This corresponds to a test pass.
 
 `INTERNAL_ERROR` is for when something goes wrong inside of `runner` itself,
-and `BAD_USAGE` is for when the program is invoked incorrectly (eg called with
+and `BAD_USAGE` is for when the program is invoked incorrectly (e.g. called with
 unparsable flags.) This usage of codes 1 and 2 is consistent with POSIX
 standards.
 
@@ -304,7 +305,7 @@ rerun the `runner` with the new shrink index, in order to continuing searching
 for smaller counterexamples.
 
 
-## Alternatives
+### Alternatives
 
 - Make `runner` automatically generate the next shrinking candidate (point
 schedule) and ask the client to run it, instead of just passing a shrink index
@@ -315,50 +316,159 @@ a design choice for composability. In fact, our original design does not
 preclude the possibility of implementing this.
 
 
-## Unresolved Questions
+### Unresolved Questions
 
 * Do we need a separate peer to act as our state observer? Maybe not, but it's
   conceptually clearer to have a peer whose sole job is to collect data.
-  For example, in the case of an empty peer schedule it is clear that the
+  For example, in the case of an empty point schedule it is clear that the
   downstream peer would still get the correct state.
 
 ## Implementation Plan
 
-As things stand, each test property is implicit within calls to
-`forAllGenesisTest`. In order to expose the existing test suite to our
-`testgen` and `runner` tools, we propose reifying each test property as
-an instance of a `ConsensusTest` data type, which are arranged into a
-`TestSuite` data structure.
+As things stand, each NvE test property is implicit within calls to
+`Test.Consensus.Genesis.Setup.forAllGenesisTest`. In order to expose the
+existing test suite to our `testgen` and `runner` tools, we propose reifying
+each test property as an instance of a `ConformanceTest` data type, which are
+arranged into a `TestSuite` data structure parameterized over a `key` type,
+representing test classes, and a `blk` type for the blocks used on the tests.
 
 <a name="testsuite-anchor"></a>
 ```haskell
+
 data TestClass
 
-data TestSuite a
-instance Semigroup (TestSuite a)
-instance Monoid (TestSuite a)
+data TestSuite blk key
 
-insert :: TestClass -> a -> TestSuite a -> TestSuite a
-toListWithKey :: TestSuite a -> [(TestClass, a)]
+mkTestSuite :: (key -> TestSuiteData blk) -> TestSuite blk key
+at :: TestSuite blk key -> key ->  TestSuiteData blk
+getTest :: TestSuiteData ->  ConformanceTest blk
+toTestTree :: TestSuite blk key -> [TestTree]
 
-
-data ConsensusTest = ConsensusTest
-  { generator :: Gen PointSchedule
-  , shrinker :: PointSchedule -> [PointSchedule]
-  , property :: PointSchedule -> IO Bool
-  , desiredPasses :: Int
+data ConformanceTest blk = ConformanceTest
+  { generator       :: Gen (GenesisTestFull blk)
+  , config          :: SchedulerConfig
+  , shrinker        :: (GenesisTestFull blk -> StateView blk -> [GenesisTestFull blk])
+  , property        :: GenesisTestFull blk -> StateView blk -> Property
+  , desiredPasses   :: Int -> Int
+  , maxSize         :: Int -> Int
+  , description     :: String
   }
 
-allTheTests :: TestSuite ConsensusTest
+allTheTests :: TestSuite CardanoBlock TestClass
 
-runConsensusTest :: ConsensusTest -> Property
+runConformanceTest :: ConformanceTest -> Property
 ```
 
 The change to `cardano-node`'s test suite would be minimal, and it essentially boils
-down to implementing `runConsensusTest` using `forAllGenesisTest`, which should
+down to implementing `runConformanceTest` using `forAllGenesisTest`, which should
 have no local effect on the implementation. Along these lines,
-`toTasty :: TestSuite ConsensusTest -> TestTree` would essentially traverse the
-`TestSuite` using `runConsensusTest`.
+`toTestTree :: TestSuite blk key -> [TestTree]` would essentially traverse the
+`TestSuite` using `runConformanceTest`. Another relevant change would be
+exposing part of the `ouroboros-consensus-diffusion` test infrastructure in a
+new sublibrary, reducing the API surface to the minimum requirements of the
+proposed executables.
+
+## NUT Configuration Requirements
+
+As our testing infrastructure is designed to work on the node-to-node
+communication protocol, which every node must necessarily implement,
+the implementation overhead implied by out tools becomes minimal. In brief, the
+only requirements test against our harness are:
+
+1. Parsing the generated topology file to connect to the simulated peers.
+2. Have a means to disable VRF[^vrf] cryptographic validation.
+
+[^vrf]: [Verifiable Random Functions](https://ouroboros-consensus.cardano.intersectmbo.org/docs/references/glossary/#verifiable-random-functions-vrf).
+
+The reason for the last requirement is related to the chain generators used for
+the NvE tests. The generated chains essentially reify an omniscient view
+of an artificial leader schedule; by disabling the header/block VRF validation,
+the chain generators are free to instantiate rare but possible scenarios, as
+slots can then be populated on demand. This translates into the ability to
+increase block density arbitrarily (up to slot granularity) and stress-test
+the consensus implementation with reasonable time and resources.
+
+On the one hand, we consider the implementation of both features to be of
+negligible cost in contrast with the gain of a whole test suite.
+Case in point, since the VRF check is an isolated component of the protocol
+disabling it should consist of a change in the order of one line of code.
+For example, in `cardano-node`, this is accomplished by:
+
+```diff
+-doValidateVRFSignature eta0 pd f b = do
+-  case Map.lookup hk pd of
+-    Nothing -> throwError $ VRFKeyUnknown hk
+-    Just (SL.IndividualPoolStake sigma _totalPoolStake vrfHK) -> do
+-      let vrfHKStake = SL.fromVRFVerKeyHash vrfHK
+-          vrfHKBlock = VRF.hashVerKeyVRF vrfK
+-      vrfHKStake == vrfHKBlock
+-        ?! VRFKeyWrongVRFKey hk vrfHKStake vrfHKBlock
+-      VRF.verifyCertified
+-        ()
+-        vrfK
+-        (mkInputVRF slot eta0)
+-        vrfCert
+-        ?! VRFKeyBadProof slot eta0 vrfCert
+-      checkLeaderNatValue vrfLeaderVal sigma f
+-        ?! VRFLeaderValueTooBig (bvValue vrfLeaderVal) sigma f
+-  where
+-    hk = coerceKeyRole . hashKey . Views.hvVK $ b
+-    vrfK = Views.hvVrfVK b
+-    vrfCert = Views.hvVrfRes b
+-    vrfLeaderVal = vrfLeaderValue (Proxy @c) vrfCert
+-    slot = Views.hvSlotNo b
++doValidateVRFSignature _ _ _ _ = pure ()
+```
+
+This change can be e.g. translated to a CLI flag allowing a node to trust
+election proofs without checking them. The concrete way such a configurable
+option is to be exposed is left for each node to decide.
+
+Node implementers might raise reasonable concerns, as said cryptography is a
+critical security measure (intended to make bad scenarios unlikely). If
+designing such an option in a safe manner is out of scope for a team, a low
+cost alternative would be to write a patch, e.g. adding an
+environment variable to disable the feature altogether, that can be cherry
+picked only when running the testing simulation.
+
+Finally, the compliance of the VRF check itself can be tested via other
+methods, like syncing to mainnet, so there is no significant loss regarding
+consensus protocol testing scope.
+
+### Considered Alternatives
+
+Alternatives to accomplish similar benefits were considered, but the
+proposed one above was chosen on the account of lowest implementation effort
+and maximum testing flexibility. For completeness and reference, we include
+mention of these.
+
+- Have the implementation parameterized over a notion of time, where the
+  production release would instantiate it to wall-clock time and have it use
+  the input from a time driver for testing. This alternative would be ideal,
+  but _a priori_ implies non-trivial cost on nodes that have not adopted this
+  design early.
+- Tweaking protocol parameters. For example, setting the active slot coefficient
+  $f$ to nearly one, so that active slots become more common and thus
+  more slots become electable by the controlled stake. Nevertheless, setting
+  this to a very high value could have unknown effects by other parameters,
+  such as the epoch length, which is calculated as $10k/f$ (where $k$ is the
+  security parameter). Furthermore, even with $f$ set to 0.99, the probability
+  of successfully generating a long chain with 200 successive blocks would only
+  be about 13%. Thus, this alternative is not suitable for reliable testing.
+- Using the Transitional Praos protocol (TPraos) leader election overlay.
+  This protocol variant was implemented for the transition from Byron to the
+  early Shelley era; it overlays the legacy Byzantine Fault Tolerant (BFT) regime
+  (used during Byron) atop the probabilistic PoS+VRF leader election of Praos,
+  and ranges over a transition parameter that progressively increases towards the
+  exclusive use of VRF election. BFT slots select block leaders deterministically
+  from a set of fixed keys; so by fixing the transition parameter, TPraos
+  could be used to override the VRF check.
+  However, new nodes may not implement legacy protocols, including TPraos.
+
+Note the first two alternatives imply altering the existing chain generators
+to restrict themselves to available slots. This is would lead to a significant
+increase in the number of required slots for testing, as most slots would
+be empty.
 
 
 ## Milestones
@@ -451,27 +561,17 @@ decoupled from any internal details of `cardano-node`.
 The central step in this milestone will be a consultation with the
 [Amaru](https://github.com/pragma-org/amaru) architects
 to explain out the design to them and discuss any concerns about satisfying the
-proposed interface, which *a priori* consists of configurable options to disable
-cryptography, change timeouts, and parse topology files.
+[configuration requirements](#nut-configuration-requirements).
+We explicitly aim for insight into the expected *implementation burden*
+required on alternative nodes.
 
 #### Deliverables
 
 In this milestone we will deliver an updated version of `runner` that uses
-cardano blocks instead of `TestBlock`s, which are exclusive to `cardano-node`
-testing infrastructure.
-
-Furthermore, we will deliver a design update integrating the feedback from
-the Amaru architects, including a high-level overview and analysis of the
-configurable options necessary for *any* implementation to test against
-our harness.
-
-We explicitly aim for insight into the expected *implementation burden*
-required on alternative nodes.
-
-#### Questions to Answer
-
-Do we need to simulate time? This might be related to configuration access to
-node timeouts (as network latency would be irrelevant in this setting).
+`CardanoBlock`s instead of `TestBlock`s, which are exclusive to `cardano-node`
+testing infrastructure. Nodes fulfilling the
+[configuration requirements](#nut-configuration requirements) should be able
+to connect to the simulated peers and run a test.
 
 
 ### Milestone 4 - Implement `testgen`
@@ -483,31 +583,36 @@ the approach official. We will refactor the existing test suite into a reified
 [`TestSuite`](#testsuite-anchor), from which we can extract both the existing
 `tasty` test suite, as well as the data for `testgen`.
 
-This step will require patching `ouroboros-consensus`'s test suite, which is why we want to
-have proven the technology before making upstream changes.
+This step will require patching and exposing part of `ouroboros-consensus-diffusion`'s
+test suite, which is why we want to have proven the technology before making
+upstream changes.
 
 
 #### Deliverables
 
 In this milestone, we will deliver:
 
-1. a design and specification of the serialization format for our test files
-2. corresponding changes to `runner` and `shrinkview` for parsing and
-   serializing these files
-3. we will port all of the existing `ouroboros-consensus` tests into a reified
-   [`TestSuite`](#testsuite-anchor) representation.
+1. A design and specification of the serialization format for our test files.
+2. Corresponding changes to `runner` and `shrinkview` for parsing and
+   serializing these files.
+3. We will port all of the existing `ouroboros-consensus-diffusion` NvE tests
+   into a reified [`TestSuite`](#testsuite-anchor) representation.
+4. Move the code necessary for this project out of
+   `ouroboros-consensus-diffusion:test:consensus-test` into a new
+   `ouroboros-consensus-diffusion:lib:conformance-testing` sublibrary,
+   aiming for a minimal API surface to reduce maintenance burden.
 
 In addition, we will deliver the `testgen` utility, including:
 
-1. support for the `generate` command, including selection of test class,
+1. Support for the `generate` command, including selection of test class,
    optional seed and optional size parameters.
-2. support for the `list-classes`  command
-3. support for the `meta desired-passes` command
+2. Support for the `list-classes`  command.
+3. Support for the `meta` command.
 
 
 #### Questions
 
-- Can `ouroboros-consensus:consensus-tests` remain as the canonical place for
+- Can `ouroboros-consensus-diffusion:consensus-tests` remain as the canonical place for
   this data? Is it possible for our app to depend directly on the test suite of
   another library? We might need to do some cabal shuffling here.
 
